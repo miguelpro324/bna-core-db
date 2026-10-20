@@ -3,27 +3,33 @@
 # Cada versión corre en un contenedor temporal que se elimina al terminar.
 # Además de pruebas/postgres/pruebas.sql, ejecuta las pruebas que necesitan una
 # confirmación real o dos sesiones (M20b, C01 a C03) y la de carga (L01).
-# Resultados: pruebas/postgres/resultados.md e informe/pruebas-*.tex.
+# Salidas en bruto y metadatos: resultados/postgres/; tablas del informe:
+# informe/pruebas-*.tex.
 #
 # Uso: pruebas/postgres/run_tests.sh
-#      DDL=otro.sql pruebas/postgres/run_tests.sh   (control: prueba otro
-#                                                    script y solo informa los conteos)
+#      DDL=otro.sql DDL_ORIGEN=texto pruebas/postgres/run_tests.sh
+#        (control: prueba otro script, guarda las salidas en
+#        resultados/control/ y no regenera las tablas del informe)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+. "$ROOT/lib/comun.sh"
 DDL="${DDL:-}"
-OUT="$HERE/out"
-[ -n "$DDL" ] && OUT="$HERE/out/control"
+DDL_ORIGEN="${DDL_ORIGEN:-sql/bna_core.sql en $(commit_actual)}"
+OUT="$ROOT/resultados/postgres"
+[ -n "$DDL" ] && OUT="$ROOT/resultados/control"
+rm -rf "$OUT"
 mkdir -p "$OUT"
 TAG="bna-pruebas-$$"
 VERSIONS=(16 17)
+declare -A IMAGE=([16]="$PG16_IMAGE" [17]="$PG17_IMAGE")
 
 cleanup() { for v in "${VERSIONS[@]}"; do docker rm -f "$TAG-pg$v" >/dev/null 2>&1 || true; done; }
 trap cleanup EXIT
 
 for v in "${VERSIONS[@]}"; do
-  docker run -d --rm --name "$TAG-pg$v" -e POSTGRES_PASSWORD=x "postgres:$v" >/dev/null
+  docker run -d --rm --name "$TAG-pg$v" -e POSTGRES_PASSWORD=x "${IMAGE[$v]}" >/dev/null
 done
 for v in "${VERSIONS[@]}"; do
   for _ in $(seq 1 60); do
@@ -129,5 +135,8 @@ SQL
   echo "$version" > "$OUT/version-pg$v.txt"
 done
 
+metadatos "$OUT/metadatos.txt" "ddl=$DDL_ORIGEN" \
+  "postgresql16=$(cat "$OUT/version-pg16.txt")" "imagen16=$PG16_IMAGE" \
+  "postgresql17=$(cat "$OUT/version-pg17.txt")" "imagen17=$PG17_IMAGE"
 [ -n "$DDL" ] && exit 0
-python3 -I "$HERE/combinar.py" "$OUT" "$HERE/resultados.md" "$ROOT/informe" "${VERSIONS[@]}"
+python3 -I "$HERE/combinar.py" "$OUT" "$OUT/resultados.md" "$ROOT/informe" "${VERSIONS[@]}"

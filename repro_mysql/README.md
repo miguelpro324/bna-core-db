@@ -16,7 +16,7 @@ todo corre en un contenedor MySQL 8.4 temporal que se elimina al terminar.
 ./run.sh /ruta/a/backend/Trabajo_hecho     # otra ubicación
 ```
 
-La salida de cada paso queda en `out/`.
+La salida de cada paso queda en `resultados/repro_mysql/` (en la raíz del repositorio), junto con `resultado.csv` y `metadatos.txt`.
 
 ## Qué hace
 
@@ -37,7 +37,7 @@ script unificado. Para repetir una prueba suelta, vuelve a correr `run.sh`.
 ## Cómo leer el resultado
 
 Al final, `run.sh` muestra un informe en lenguaje simple (se guarda también en
-`out/informe.txt`). Cada comprobación aparece así:
+`resultados/repro_mysql/informe.txt`). Cada comprobación aparece así:
 
 ```
 [FALLA]  4. Un deposito actualiza el saldo de la cuenta  (bug 3)
@@ -62,4 +62,4 @@ La última línea resume el total. El resultado esperado con el script actual es
 que crea los objetos prometidos y que el diccionario coincide con la base.
 
 Para ver las tablas técnicas de cada prueba: `./run.sh --detalle`, o los
-archivos `out/*.log`.
+archivos `resultados/repro_mysql/*.log`.

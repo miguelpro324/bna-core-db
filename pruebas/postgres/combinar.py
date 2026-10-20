@@ -1,5 +1,5 @@
 # Combines the per-version results of run_tests.sh into
-#   pruebas/postgres/resultados.md           (full table, for the repository)
+#   resultados/postgres/resultados.md        (full table, for the repository)
 #   informe/pruebas-mysql.tex                (rows of the report table: MySQL failures)
 #   informe/pruebas-objetos.tex              (rows of the report table: ported objects)
 # Usage: combinar.py <out_dir> <resultados.md> <informe> <version>...

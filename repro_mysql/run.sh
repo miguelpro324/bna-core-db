@@ -3,9 +3,11 @@
 # Levanta un contenedor MySQL 8.4 temporal, carga 99_bna_unificado.sql,
 # ejecuta las pruebas de sql/ y compara la documentacion con la base cargada.
 # No modifica el repositorio. El contenedor se elimina al terminar.
+# Salidas en resultados/repro_mysql/: informe.txt, las tablas de cada prueba
+# (*.log), resultado.csv (una fila por comprobación) y metadatos.txt.
 #
 # Uso: ./run.sh [--detalle] [ruta/a/backend/Trabajo_hecho]
-#   --detalle  muestra tambien las tablas tecnicas de cada prueba (siempre quedan en out/)
+#   --detalle  muestra tambien las tablas tecnicas de cada prueba (siempre quedan en resultados/repro_mysql/)
 #   Sin ruta, extrae backend/Trabajo_hecho de la linea base MySQL (BASE, por
 #   defecto el commit ab6a6ec de este repositorio).
 set -euo pipefail
@@ -14,17 +16,20 @@ DETALLE=0
 if [ "${1:-}" = "--detalle" ]; then DETALLE=1; shift; fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$HERE/.." && pwd)"
+. "$ROOT/lib/comun.sh"
 BASE="${BASE:-ab6a6ec}"
 NAME="bna-repro-mysql-$$"
 TMP="$(mktemp -d)"
 if [ -n "${1:-}" ]; then
   TH="$(cd "$1" && pwd)"
 else
-  git -C "$HERE" archive "$BASE" backend/Trabajo_hecho | tar -x -C "$TMP"
+  git -C "$ROOT" archive "$BASE" backend/Trabajo_hecho | tar -x -C "$TMP"
   TH="$TMP/backend/Trabajo_hecho"
 fi
-IMAGE="mysql:8.4"
-OUT="$HERE/out"
+IMAGE="$MYSQL_IMAGE"
+OUT="$ROOT/resultados/repro_mysql"
+rm -rf "$OUT"
 mkdir -p "$OUT"
 
 [ -f "$TH/BD/99_bna_unificado.sql" ] || { echo "No se encontro $TH/BD/99_bna_unificado.sql" >&2; exit 1; }
@@ -104,7 +109,7 @@ reg 1 "El script de carga encuentra el archivo SQL" \
   "Quien siga la guia y ejecute .\\cargar_bna.ps1 recibe 'No se encontro el script' y no se carga nada. Lo mismo pasa con los comandos manuales del README y la guia."
 
 # --- Carga ----------------------------------------------------------------------
-paso "Cargando BD/99_bna_unificado.sql (log en out/carga.log)"
+paso "Cargando BD/99_bna_unificado.sql (log en resultados/repro_mysql/carga.log)"
 if mysql_run --show-warnings < "$TH/BD/99_bna_unificado.sql" > "$OUT/carga.log" 2>&1; then
   avisos="$(grep -c '^Warning' "$OUT/carga.log" || true)"
   reg - "El script unificado carga sin errores en MySQL 8.4" \
@@ -121,7 +126,7 @@ fi
 
 # --- Pruebas SQL ----------------------------------------------------------------
 for f in 00_conteos 01_estado_demo 02_integridad 03_topes_y_bloqueo; do
-  paso "Ejecutando sql/$f.sql (detalle en out/$f.log)"
+  paso "Ejecutando sql/$f.sql (detalle en resultados/repro_mysql/$f.log)"
   mysql_run -t --force bna < "$HERE/sql/$f.sql" > "$OUT/$f.log" 2>&1
   if [ "$DETALLE" = 1 ]; then cat "$OUT/$f.log"; fi
 done
@@ -143,7 +148,7 @@ if diff "$OUT/dic_columnas.txt" "$OUT/db_columnas.txt" > "$OUT/dic_diff.txt"; th
 else
   reg - "El diccionario de datos describe la base real" \
     "Se compararon las columnas de diccionario_datos.md con las de la base cargada." \
-    "Las mismas columnas en las mismas tablas" "Hay $(grep -c '^[<>]' "$OUT/dic_diff.txt") diferencias (ver out/dic_diff.txt)" 0 \
+    "Las mismas columnas en las mismas tablas" "Hay $(grep -c '^[<>]' "$OUT/dic_diff.txt") diferencias (ver resultados/repro_mysql/dic_diff.txt)" 0 \
     "El diccionario no refleja lo que realmente crea el script."
 fi
 
@@ -160,5 +165,14 @@ reg - "El diagrama Mermaid muestra todas las relaciones" \
   "El diagrama es parcial: no sirve para ver todo el modelo aunque su leyenda diga que las flechas son las FKs."
 
 informe | tee "$OUT/informe.txt"
+{
+  echo "n,ok,bug,titulo,esperado,obtenido"
+  mysql_run -N -B -r -e "SELECT n, ok, bug, titulo, esperado, obtenido FROM repro.resultado ORDER BY n" \
+    | python3 -I -c 'import csv, sys; w = csv.writer(sys.stdout, lineterminator="\n"); [w.writerow(l.rstrip("\n").split("\t")) for l in sys.stdin]'
+} > "$OUT/resultado.csv"
+origen="$BASE ($(git -C "$ROOT" rev-parse --short=12 "$BASE"))"
+[ -n "${1:-}" ] && origen="$TH"
+metadatos "$OUT/metadatos.txt" "linea_base=$origen" \
+  "mysql=$(mysql_run -N -e 'SELECT VERSION()')" "imagen_mysql=$IMAGE"
 echo
-echo "Informe guardado en out/informe.txt; tablas tecnicas en out/*.log (o ./run.sh --detalle)."
+echo "Informe guardado en resultados/repro_mysql/informe.txt; tablas tecnicas en resultados/repro_mysql/*.log (o ./run.sh --detalle)."
