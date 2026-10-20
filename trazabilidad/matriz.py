@@ -102,7 +102,17 @@ def unir_fuentes(listas):
             locs[k] = []
         if loc and loc not in locs[k]:
             locs[k].append(loc)
-    return [(k, "; ".join(locs[k])) for k in orden]
+    return [(k, juntar_paginas(locs[k])) for k in orden]
+
+
+def juntar_paginas(locs):
+    """Une localizadores; si todos son páginas, una sola lista ordenada."""
+    if locs and all(re.match(r"pp?\.~", loc) for loc in locs):
+        n = sorted({int(x) for loc in locs for x in re.findall(r"\d+", loc)})
+        if len(n) == 1:
+            return "p.~%d" % n[0]
+        return "pp.~" + ", ".join(str(x) for x in n[:-1]) + " y~%d" % n[-1]
+    return "; ".join(locs)
 
 
 # --- Fallas de la línea base MySQL, verificadas contra ab6a6ec ---------------
