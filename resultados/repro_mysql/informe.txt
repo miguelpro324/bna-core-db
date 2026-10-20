@@ -51,7 +51,7 @@
                 lleva dentro (sus primeros 48 bits).
    Correcto:    La hora del UUID coincide con la hora actual (diferencia 0 ms,
                 a lo sumo 1-2 ms)
-   Obtenido:    La hora del UUID esta 591 ms en el futuro
+   Obtenido:    La hora del UUID esta 540 ms en el futuro
    Significa:   La funcion suma dos veces los milisegundos; el error va de 0 a
                 999 ms segun el instante.
 

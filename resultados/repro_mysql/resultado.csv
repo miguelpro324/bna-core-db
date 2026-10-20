@@ -4,7 +4,7 @@ n,ok,bug,titulo,esperado,obtenido
 3,1,-,La base tiene los objetos que promete la guia,"66 / 9 / 7 / 3 / 1, como dicen GUIA_EJECUCION.md y verificar_bna.ps1",66 / 9 / 7 / 3 / 1
 4,0,3,Un deposito actualiza el saldo de la cuenta,saldo_contable = 500.00,saldo_contable = 0.00
 5,0,4,Pagar capital reduce la deuda del credito,saldo_capital = 9700.00,saldo_capital = 10000.00
-6,0,2,fn_uuid_v7() guarda la hora correcta,"La hora del UUID coincide con la hora actual (diferencia 0 ms, a lo sumo 1-2 ms)",La hora del UUID esta 591 ms en el futuro
+6,0,2,fn_uuid_v7() guarda la hora correcta,"La hora del UUID coincide con la hora actual (diferencia 0 ms, a lo sumo 1-2 ms)",La hora del UUID esta 540 ms en el futuro
 7,0,2,Los UUID v7 se ordenan por fecha de creacion,El UUID de 12:00:00.900 se ordena antes que el de 12:00:01.100,El UUID de 12:00:00.900 se ordena DESPUES que el de 12:00:01.100
 8,0,7,Los IDs tienen que ser UUID validos,Rechazo: un UUID tiene 36 caracteres con formato 8-4-4-4-12,MySQL lo acepto sin error
 9,0,7,Una orden de desembolso respeta su solicitud,"Rechazo: el cliente, la moneda y el monto salen de la solicitud aprobada",MySQL lo acepto sin error
