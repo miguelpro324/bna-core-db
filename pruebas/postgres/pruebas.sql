@@ -445,8 +445,8 @@ SELECT prueba.rechaza('F23', 'Cuentas', 'Movimiento inmutable', 'El importe de u
   $q$UPDATE cuentas.movimiento SET monto = 1 WHERE num_cuenta = 'CTA-PEN-2'$q$,
   'BNA-MOVIMIENTO');
 SELECT prueba.rechaza('F24', 'CORE', 'Partida doble', 'Un asiento sin líneas se rechaza al confirmar',
-  $q$INSERT INTO core.asiento_contable (numero_asiento, fecha_contable, fecha_valor, glosa, moneda, correlation_id)
-     VALUES ('T-VACIO', current_date, current_date, 'Sin líneas', 'PEN', gen_random_uuid())$q$,
+  $q$INSERT INTO core.asiento_contable (id_asiento, numero_asiento, fecha_contable, fecha_valor, glosa, moneda, correlation_id)
+     VALUES ('9a000000-0000-4000-8000-000000000003', 'T-VACIO', current_date, current_date, 'Sin líneas', 'PEN', gen_random_uuid())$q$,
   'BNA-PARTIDA-DOBLE');
 
 SELECT prueba.verifica('F25', 'Tarjetas', 'v_tarjeta_resumen (PCI-DSS)', 'La vista enmascara el número y muestra el vencimiento MM/AA',

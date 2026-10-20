@@ -1,6 +1,6 @@
 # Resultados de las pruebas de la base integrada
 
-Generado por `tests/db/run_tests.sh`. Las pruebas M reproducen en PostgreSQL las 25 fallas
+Generado por `pruebas/postgres/run_tests.sh`. Las pruebas M reproducen en PostgreSQL las 25 fallas
 de la base unificada para MySQL; las F prueban los objetos portados e implementados;
 las R son las pruebas negativas originales del informe.
 
@@ -90,7 +90,7 @@ las R son las pruebas negativas originales del informe.
 | F21b | Cuentas | Estado de la cuenta (Cuentas) | Una cuenta BLOQUEADA_PREVENTIVA admite créditos | saldo 5100.00 | saldo 5100.00 | pasa | pasa |
 | F22 | Cuentas | Extorno (Tarjetas, C07) | El extorno devuelve el monto al tope del día | consumido hoy 0.00 | consumido hoy 0.00 | pasa | pasa |
 | F23 | Cuentas | Movimiento inmutable | El importe de un movimiento no se modifica | Rechazo: BNA-MOVIMIENTO | Rechazo: BNA-MOVIMIENTO: solo se admite el paso de APROBADO a EXTORNADO | pasa | pasa |
-| F24 | CORE | Partida doble | Un asiento sin líneas se rechaza al confirmar | Rechazo: BNA-PARTIDA-DOBLE | PG 16.15: Rechazo: BNA-PARTIDA-DOBLE: el asiento be21af73-879c-4ce8-9528-ed35b75e4e6d no cuadra (debe 0.00, haber 0.00) / PG 17.11: Rechazo: BNA-PARTIDA-DOBLE: el asiento c4fffa05-3b0c-4f0d-af51-366360bc6f36 no cuadra (debe 0.00, haber 0.00) | pasa | pasa |
+| F24 | CORE | Partida doble | Un asiento sin líneas se rechaza al confirmar | Rechazo: BNA-PARTIDA-DOBLE | Rechazo: BNA-PARTIDA-DOBLE: el asiento 9a000000-0000-4000-8000-000000000003 no cuadra (debe 0.00, haber 0.00) | pasa | pasa |
 | F25 | Tarjetas | v_tarjeta_resumen (PCI-DSS) | La vista enmascara el número y muestra el vencimiento MM/AA | 4557 88** **** 1234; 01/31; operativa | 4557 88** **** 1234; 01/31; operativa | pasa | pasa |
 | F26 | Tarjetas | v_consumo_diario (RN-TOP-001) | La vista suma lo autorizado por tarjeta, canal, moneda y día | ATM PEN hoy: 500.00 en 2 operaciones | ATM PEN hoy: 500.00 en 2 operaciones | pasa | pasa |
 | F27 | Tarjetas | v_credenciales_en_riesgo (RN-TAR-004) | La vista muestra los intentos acumulados y restantes | PIN_ATM: 1 fallido, 2 restantes | PIN_ATM: 1 fallido, 2 restantes | pasa | pasa |
