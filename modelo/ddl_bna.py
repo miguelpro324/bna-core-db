@@ -1,4 +1,7 @@
-# PostgreSQL DDL of the final (normalized) schema.  Called from modelo_bna.py.
+# MySQL 8.4 DDL of the final (normalized) schema.  Called from modelo_bna.py.
+# The relational design (schemas, keys, CHECKs, catalogs, seeds) is the same
+# as on the main (PostgreSQL) branch; only the physical layer differs: the
+# logical types below are mapped by my_type(), and gen() writes MySQL.
 # Every design decision taken while writing the DDL is marked "DECISIÓN" both
 # here and, where it matters to the reader of the script, in the SQL output.
 import os
@@ -323,7 +326,8 @@ QUERY_INDEXES = [
      "reconstrucción de una operación completa desde la traza (Desembolso, idx_auditoria_correlation)"),
 ]
 
-# Triggers, functions and views: hand-written PL/pgSQL inlined in the DDL.
+# Triggers, procedures, functions, views and the event: hand-written MySQL
+# stored programs inlined in the DDL.
 PROGRAMMING = os.path.join(os.path.dirname(os.path.abspath(__file__)), "programacion_bna.sql")
 
 
@@ -501,69 +505,259 @@ SEEDS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Physical layer (MySQL 8.4).  DECISIÓN (correspondencia de tipos):
+#   * UUID -> BINARY(16) en el orden de bytes del texto (UUID_TO_BIN sin
+#     intercambio), con un CHECK de versión y variante: sin él, un texto corto
+#     como 'c2' se rellena con ceros y se guarda. El valor por omisión es un
+#     UUID versión 4 hecho con RANDOM_BYTES (no se porta fn_uuid_v7, que tenía
+#     una falla en la línea base);
+#   * TIMESTAMPTZ -> DATETIME(6) en UTC (TIMESTAMP termina en 2038); now() ->
+#     UTC_TIMESTAMP(6), que no depende de la zona de la sesión;
+#   * BOOLEAN -> TINYINT(1) con CHECK (0, 1): el BOOLEAN de MySQL acepta 5;
+#   * INET -> VARCHAR(45) con CHECK IS_IPV4/IS_IPV6; JSONB -> JSON;
+#     BYTEA -> LONGBLOB; NUMERIC -> DECIMAL;
+#   * IDENTITY -> AUTO_INCREMENT, más un trigger que rechaza un valor explícito
+#     (GENERATED ALWAYS lo rechaza en PostgreSQL; AUTO_INCREMENT lo acepta).
+# ---------------------------------------------------------------------------
+OWNER = "'bna_owner'@'%'"
+SQL_MODE = ("STRICT_ALL_TABLES,ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,"
+            "ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION")
+COLLATION = "utf8mb4_0900_as_cs"
+UUID_V4 = ("(CONCAT(RANDOM_BYTES(6), CHAR(0x40 | (ASCII(RANDOM_BYTES(1)) & 0x0F)), RANDOM_BYTES(1), "
+           "CHAR(0x80 | (ASCII(RANDOM_BYTES(1)) & 0x3F)), RANDOM_BYTES(7)))")
+
+
+def my_type(t):
+    if "IDENTITY" in t:
+        return "BIGINT AUTO_INCREMENT"
+    m = re.match(r"NUMERIC(\(.*\))$", t)
+    if m:
+        return "DECIMAL" + m.group(1)
+    return {"UUID": "BINARY(16)", "TIMESTAMPTZ": "DATETIME(6)", "BOOLEAN": "TINYINT(1)",
+            "JSONB": "JSON", "INET": "VARCHAR(45)", "BYTEA": "LONGBLOB"}.get(t, t)
+
+
+def type_check(t, col):
+    """CHECK que suple en MySQL lo que el tipo de PostgreSQL ya garantiza."""
+    if t == "UUID":
+        return ("(ASCII(SUBSTR(%s, 7, 1)) >> 4) BETWEEN 1 AND 8 AND (ASCII(SUBSTR(%s, 9, 1)) & 0xC0) = 0x80"
+                % (col, col))
+    if t == "BOOLEAN":
+        return "%s IN (0, 1)" % col
+    if t == "INET":
+        return "IS_IPV4(%s) OR IS_IPV6(%s)" % (col, col)
+    return None
+
+
+def my_check(c):
+    c = re.sub(r"(\w+) ~ ('[^']*')", r"REGEXP_LIKE(\1, \2)", c)
+    return re.sub(r"num_nonnulls\((\w+), (\w+)\) = 1", r"(\1 IS NOT NULL) + (\2 IS NOT NULL) = 1", c)
+
+
+def my_default(d):
+    return "(UTC_TIMESTAMP(6))" if d == "now()" else d
+
+
+# Índices de consulta parciales: MySQL no admite WHERE en un índice; la
+# columna de la condición pasa a encabezar el índice.
+PARTIAL_QUERY_LEAD = {"ix_evento_salida_pendiente": "estado_envio",
+                      "ix_evento_entrega_pendiente": "estado_entrega"}
+
+
+def functional_unique(cols, where):
+    cond = re.sub(r"^(es_principal|estado_activo)$", r"\1 = 1", where)
+    return ", ".join("(CASE WHEN %s THEN %s END)" % (cond, c.strip()) for c in cols.split(","))
+
+
+# ---------------------------------------------------------------------------
+# Roles. DECISIÓN: tres cuentas o roles.
+#   * bna_owner: cuenta bloqueada (no inicia sesión), dueña y DEFINER de los
+#     triggers, procedimientos, vistas y del evento;
+#   * bna_admin: DDL y DML sobre las cinco bases, sin privilegios de servidor;
+#   * bna_app: la aplicación. Lee todo; inserta en las tablas de negocio (no
+#     en catálogos, parámetros ni datos de referencia) salvo
+#     los asientos (solo por core.registrar_asiento) y el consumo diario (lo
+#     mantienen los triggers); actualiza solo las columnas que cambia una
+#     operación de negocio; no borra, no trunca (TRUNCATE exige DROP) ni
+#     altera nada.
+# ---------------------------------------------------------------------------
+APP_NO_INSERT = {"ASIENTO_CONTABLE", "DETALLE_ASIENTO", "CONSUMO_DIARIO"}
+# Datos de referencia que mantiene bna_admin, como los catálogos y los
+# parámetros sembrados.
+REFERENCE = {"AGENCIA", "CUENTA_CONTABLE", "TERMINAL", "ANALISTA", "BIN_TARJETA", "PASARELA_PAGO"}
+# Bitácoras de solo inserción: sin UPDATE para la aplicación.
+APPEND_ONLY = {"ASIENTO_CONTABLE", "DETALLE_ASIENTO", "INTENTO_AUTENTICACION",
+               "HISTORIAL_ESTADO_TARJETA", "HISTORIAL_ESTADO_SOLICITUD", "EVENTO_AUDITORIA",
+               "APLICACION_PAGO"}
+# Columnas que mantiene la base (triggers): la aplicación no las escribe.
+DERIVED = {"CUENTA_AHORRO": {"saldo_contable", "saldo_disponible"},
+           "CREDENCIAL": {"intentos_fallidos"}, "MATRIZ_TOKEN": {"intentos_fallidos"},
+           "AUTORIZACION": {"uuid_transaccion", "fecha_actualizacion"},
+           "TARJETA": {"estado_tarjeta"}, "CUOTA": {"saldo_pendiente", "estado_cuota"},
+           "CREDITO": {"estado_credito"}}
+# En la inserción, el estado de la tarjeta, la cuota y el crédito sí los da la
+# aplicación (estado inicial).
+DERIVED_ON_INSERT_OK = {"TARJETA": {"estado_tarjeta"}, "CUOTA": {"saldo_pendiente", "estado_cuota"},
+                        "CREDITO": {"estado_credito"}}
+# Tablas cuyas columnas actualizables se enumeran (el resto de la fila no
+# cambia: lo impiden además sus triggers).
+APP_UPDATE_ONLY = {"MOVIMIENTO": ["estado_transaccion"],
+                   "AUTORIZACION": ["estado_autorizacion", "codigo_respuesta", "motivo_rechazo", "nivel_riesgo"]}
+PROCEDURES_APP = ["core.registrar_asiento", "core.verificar_configuracion", "tarjetas.bloquear_tarjeta",
+                  "creditos.aplicar_pago"]
+PROCEDURES_ADMIN = ["tarjetas.marcar_tarjetas_vencidas"]
+
+
+def grants(order):
+    seeded = {rel for rel, _, _ in SEEDS} | {t for t, *_ in CATALOGS} | REFERENCE
+    L = []
+    w = L.append
+    w("CREATE ROLE IF NOT EXISTS bna_app, bna_admin;")
+    for s_ in SCHEMAS:
+        w("GRANT ALL PRIVILEGES ON %s.* TO bna_admin;" % s_)
+    for s_ in SCHEMAS:
+        w("GRANT SELECT ON %s.* TO bna_app;" % s_)
+    for rel in order:
+        cols = [a["name"] for a in FIN[rel]]
+        pkc = set(pk(rel))
+        ident = {c for c in cols if "%s.%s" % (rel, c) in IDENTITY}
+        if rel not in APP_NO_INSERT and rel not in seeded:
+            excl = (DERIVED.get(rel, set()) - DERIVED_ON_INSERT_OK.get(rel, set())) | ident
+            ins = [c for c in cols if c not in excl]
+            if ins == cols:
+                w("GRANT INSERT ON %s TO bna_app;" % q(rel))
+            else:
+                w("GRANT INSERT (%s) ON %s TO bna_app;" % (", ".join(ins), q(rel)))
+        if rel in APPEND_ONLY or rel in seeded or rel in APP_NO_INSERT:
+            continue
+        upd = APP_UPDATE_ONLY.get(rel) or [c for c in cols if c not in pkc | ident | DERIVED.get(rel, set())]
+        if upd:
+            w("GRANT UPDATE (%s) ON %s TO bna_app;" % (", ".join(upd), q(rel)))
+    for p in PROCEDURES_APP:
+        w("GRANT EXECUTE ON PROCEDURE %s TO bna_app;" % p)
+    w("GRANT EXECUTE ON FUNCTION core.uuid_v4 TO bna_app;")
+    w("GRANT EXECUTE ON FUNCTION core.fn_fecha_negocio TO bna_app;")
+    for p in PROCEDURES_APP + PROCEDURES_ADMIN:
+        w("GRANT EXECUTE ON PROCEDURE %s TO bna_admin;" % p)
+    return L
+
+
+def identity_guards(order):
+    """Triggers que rechazan un identificador explícito en las bitácoras."""
+    L = ["DELIMITER //"]
+    for rel in order:
+        for a in FIN[rel]:
+            if "%s.%s" % (rel, a["name"]) in IDENTITY:
+                L.append("CREATE TRIGGER %s.tg_%s_identidad BEFORE INSERT ON %s\nFOR EACH ROW BEGIN\n"
+                         "    IF NEW.%s <> 0 THEN\n"
+                         "        CALL core.fallar(CONCAT('BNA-IDENTIDAD: %s.%s lo asigna la base (se recibió ', NEW.%s, ')'));\n"
+                         "    END IF;\nEND //" % (SCHEMA_OF[rel], rel.lower(), q(rel), a["name"], q(rel), a["name"],
+                                          a["name"]))
+    L.append("DELIMITER ;")
+    return L
+
+
+def with_definer(sql):
+    sql = re.sub(r"^CREATE (TRIGGER|PROCEDURE|FUNCTION|EVENT) ", r"CREATE DEFINER = %s \1 " % OWNER, sql, flags=re.M)
+    return re.sub(r"^CREATE VIEW ", "CREATE DEFINER = %s SQL SECURITY DEFINER VIEW " % OWNER, sql, flags=re.M)
+
+
+def my_str(v):
+    if v is None:
+        return "NULL"
+    if isinstance(v, bool):
+        return "TRUE" if v else "FALSE"
+    if isinstance(v, (int, float)):
+        return str(v)
+    return "'" + str(v).replace("\\", "\\\\").replace("'", "''") + "'"
+
+
 def gen(path):
     L = []
     w = L.append
     w("-- =====================================================================")
     w("-- Banco Nacional de Arequipa (BNA) - base de datos integrada del CORE")
-    w("-- PostgreSQL 16 o superior. Generado por modelo/modelo_bna.py desde el")
-    w("-- esquema relacional normalizado (3FN) y con tablas de catálogo.")
+    w("-- MySQL 8.4. Generado por modelo/modelo_bna.py desde el esquema")
+    w("-- relacional normalizado (3FN) y con tablas de catálogo; el diseño es el")
+    w("-- de la rama main (PostgreSQL) y solo cambia la capa física.")
     w("-- =====================================================================")
-    w("-- DECISIÓN: PostgreSQL, elegido frente a MySQL en el informe (sección")
-    w("--   «Selección del sistema gestor de base de datos»); versión 16 o")
-    w("--   superior, la usada en la validación.")
-    w("-- DECISIÓN: una base con esquemas lógicos por dueño del dato; los")
-    w("--   identificadores se escriben en minúsculas y sin comillas.")
-    w("-- DECISIÓN: las claves foráneas se agregan al final con ALTER TABLE para")
-    w("--   no depender del orden de creación; ON DELETE RESTRICT por omisión,")
-    w("--   porque los registros financieros no se borran, se anulan o revierten.")
+    w("-- DECISIÓN: MySQL 8.4, por decisión del equipo de infraestructura, en")
+    w("--   contra de la recomendación del informe (sección «Selección del")
+    w("--   sistema gestor de base de datos»).")
+    w("-- DECISIÓN: una base (database) por cada esquema lógico de la rama main,")
+    w("--   con los mismos nombres calificados; collation utf8mb4_0900_as_cs, que")
+    w("--   distingue mayúsculas y tildes como PostgreSQL (con la de omisión,")
+    w("--   CHECK (x IN ('ACTIVA')) aceptaría 'activa').")
+    w("-- DECISIÓN: el modo SQL estricto se fija en la configuración del servidor")
+    w("--   (conf/mysql/bna.cnf) y aquí, en la sesión de carga: cada trigger y")
+    w("--   procedimiento se ejecuta siempre con el modo vigente al crearlo.")
+    w("-- DECISIÓN: las claves foráneas se agregan al final con ALTER TABLE, después")
+    w("--   de los índices, para que InnoDB use esos índices y no cree otros;")
+    w("--   ON DELETE RESTRICT por omisión, porque los registros financieros no se")
+    w("--   borran, se anulan o revierten.")
     w("")
-    w("BEGIN;")
+    w("SET NAMES utf8mb4;")
+    w("SET SESSION sql_mode = '%s';" % SQL_MODE)
+    w("SET SESSION time_zone = '+00:00';")
     w("")
     for s_ in SCHEMAS:
-        w("CREATE SCHEMA IF NOT EXISTS %s;" % s_)
+        w("CREATE DATABASE IF NOT EXISTS %s CHARACTER SET utf8mb4 COLLATE %s;" % (s_, COLLATION))
+    w("CREATE USER IF NOT EXISTS %s ACCOUNT LOCK;" % OWNER)
+    for s_ in SCHEMAS:
+        w("GRANT ALL PRIVILEGES ON %s.* TO %s;" % (s_, OWNER))
     w("")
     order = [t for s_ in SCHEMAS for t in SCHEMAS[s_]]
     missing = set(FIN) - set(order)
     assert not missing, missing
+    names = set()
     for rel in order:
         attrs = FIN[rel]
         w("-- %s" % ("-" * 69))
         w("CREATE TABLE %s (" % q(rel))
-        lines = []
+        lines, tchecks = [], []
         for a in attrs:
             key = "%s.%s" % (rel, a["name"])
-            t = col_type(rel, a)
-            if t == "UUID" and a["pk"] and not a["fk"] and len(pk(rel)) == 1:
-                t += " DEFAULT gen_random_uuid()"
+            lt = col_type(rel, a)
+            t = my_type(lt)
+            if lt == "UUID" and a["pk"] and not a["fk"] and len(pk(rel)) == 1:
+                t += " DEFAULT " + UUID_V4
             null = a["null"] or key in NULLABLE
             d = DEFAULTS.get(a["name"]) if not a["pk"] else None
             line = "    %-27s %s" % (a["name"], t)
-            if d and "IDENTITY" not in t:
-                line += " DEFAULT " + d
+            if d and "IDENTITY" not in lt:
+                line += " DEFAULT " + my_default(d)
             if not null and not a["pk"]:
                 line += " NOT NULL"
             if key in ENUMS:
                 line += "\n        CHECK (%s IN (%s))" % (a["name"], ", ".join(sql_str(v) for v in ENUMS[key]))
             lines.append(line)
+            tc = type_check(lt, a["name"])
+            if tc:
+                tchecks.append(("ck_%s_%s" % (rel.lower(), a["name"]), tc))
         lines.append("    CONSTRAINT pk_%s PRIMARY KEY (%s)" % (rel.lower(), ", ".join(pk(rel))))
         for i, u in enumerate(uniques(rel), 1):
             lines.append("    CONSTRAINT uk_%s_%d UNIQUE (%s)" % (rel.lower(), i, ", ".join(u)))
         for i, c in enumerate(CHECKS.get(rel, []), 1):
-            lines.append("    CONSTRAINT ck_%s_%d CHECK (%s)" % (rel.lower(), i, c))
+            lines.append("    CONSTRAINT ck_%s_%d CHECK (%s)" % (rel.lower(), i, my_check(c)))
+        for n, c in tchecks:
+            lines.append("    CONSTRAINT %s CHECK (%s)" % (n, c))
+        for ln in lines:
+            m = re.match(r"\s+CONSTRAINT (\w+) (CHECK|UNIQUE)", ln)
+            if m:
+                assert len(m.group(1)) <= 64, m.group(1)
+                assert (SCHEMA_OF[rel], m.group(1)) not in names, m.group(1)
+                names.add((SCHEMA_OF[rel], m.group(1)))
         w(",\n".join(lines))
-        w(");")
-        w("COMMENT ON TABLE %s IS %s;" % (q(rel), sql_str(comment_text(rel))))
+        w(") ENGINE = InnoDB COMMENT = %s;" % my_str(comment_text(rel)))
         w("")
-    # foreign keys
+    # indexes before foreign keys
     w("-- %s" % ("=" * 69))
-    w("-- Claves foráneas")
+    w("-- Índices")
     w("-- %s" % ("=" * 69))
     idx = []
     for rel in order:
-        for i, (cols, tgt) in enumerate(fks(rel), 1):
-            w("ALTER TABLE %s ADD CONSTRAINT fk_%s_%d FOREIGN KEY (%s)\n    REFERENCES %s (%s);"
-              % (q(rel), rel.lower(), i, ", ".join(cols), q(tgt), ", ".join(pk(tgt))))
+        for cols, tgt in fks(rel):
             pkc = pk(rel)
             covered = (tuple(pkc[:len(cols)]) == cols
                        or any(tuple(u[:len(cols)]) == cols for u in uniques(rel))
@@ -571,44 +765,80 @@ def gen(path):
                               for _, r, c, where, _ in QUERY_INDEXES))
             if not covered:
                 idx.append((rel, cols))
+    w("-- DECISIÓN: InnoDB exige un índice por clave foránea y lo crea si falta;")
+    w("--   se crean aquí, con nombre, los mismos que en la rama main.")
+    for rel, cols in idx:
+        w("CREATE INDEX ix_%s_%s ON %s (%s);" % (rel.lower(), "_".join(cols), q(rel), ", ".join(cols)))
+    w("-- DECISIÓN: MySQL no tiene índices parciales. La unicidad parcial se")
+    w("--   expresa con un índice funcional sobre CASE WHEN condición THEN columna")
+    w("--   END: fuera de la condición vale NULL, y los NULL no chocan entre sí.")
+    for name, rel, cols, where, why in PARTIAL:
+        w("-- DECISIÓN: %s." % why)
+        w("CREATE UNIQUE INDEX %s ON %s (%s);" % (name, q(rel), functional_unique(cols, where)))
+    w("-- DECISIÓN: índices de consulta para las vistas y las consultas documentadas;")
+    w("--   en los dos que en la rama main son parciales, la columna de la")
+    w("--   condición encabeza el índice.")
+    for name, rel, cols, where, why in QUERY_INDEXES:
+        w("-- %s%s." % (why[0].upper(), why[1:]))
+        cols = ((PARTIAL_QUERY_LEAD[name],) if where else ()) + tuple(cols)
+        w("CREATE INDEX %s ON %s (%s);" % (name, q(rel), ", ".join(cols)))
+    w("")
+    # foreign keys
+    w("-- %s" % ("=" * 69))
+    w("-- Claves foráneas")
+    w("-- %s" % ("=" * 69))
+    for rel in order:
+        for i, (cols, tgt) in enumerate(fks(rel), 1):
+            w("ALTER TABLE %s ADD CONSTRAINT fk_%s_%d FOREIGN KEY (%s)\n    REFERENCES %s (%s);"
+              % (q(rel), rel.lower(), i, ", ".join(cols), q(tgt), ", ".join(pk(tgt))))
     for rel, cols, tgt, why in EXTRA_FK:
         w("-- DECISIÓN: %s." % why)
         w("ALTER TABLE %s ADD CONSTRAINT fk_%s_vinculo FOREIGN KEY (%s)\n    REFERENCES %s (%s);"
           % (q(rel), rel.lower(), ", ".join(cols), q(tgt), ", ".join(pk(tgt))))
     w("")
-    w("-- %s" % ("=" * 69))
-    w("-- Índices")
-    w("-- %s" % ("=" * 69))
-    w("-- DECISIÓN: PostgreSQL no indexa las claves foráneas; se crea un índice por")
-    w("--   cada una que no esté cubierta por la clave primaria o una única.")
-    for rel, cols in idx:
-        w("CREATE INDEX ix_%s_%s ON %s (%s);" % (rel.lower(), "_".join(cols), q(rel), ", ".join(cols)))
-    for name, rel, cols, where, why in PARTIAL:
-        w("-- DECISIÓN: %s." % why)
-        w("CREATE UNIQUE INDEX %s ON %s (%s) WHERE %s;" % (name, q(rel), cols, where))
-    w("-- DECISIÓN: índices de consulta para las vistas y las consultas documentadas.")
-    for name, rel, cols, where, why in QUERY_INDEXES:
-        w("-- %s%s." % (why[0].upper(), why[1:]))
-        w("CREATE INDEX %s ON %s (%s)%s;" % (name, q(rel), ", ".join(cols),
-                                             " WHERE %s" % where if where else ""))
-    w("")
+    w(PROG_BEGIN)
     with open(PROGRAMMING, encoding="utf-8") as f:
-        w(f.read().rstrip("\n"))
+        w(with_definer(f.read().rstrip("\n")))
+    w("")
+    w("-- %s" % ("-" * 69))
+    w("-- Bitácoras: el identificador lo asigna la base (en la rama main,")
+    w("-- GENERATED ALWAYS AS IDENTITY rechaza un valor explícito).")
+    w("-- %s" % ("-" * 69))
+    w(with_definer("\n".join(identity_guards(order))))
+    w("")
+    w("-- %s" % ("=" * 69))
+    w("-- Roles y privilegios")
+    w("-- %s" % ("=" * 69))
+    w("\n".join(grants(order)))
+    w(PROG_END)
     w("")
     w("-- %s" % ("=" * 69))
     w("-- Datos iniciales: parámetros documentados por las fuentes")
     w("-- %s" % ("=" * 69))
     w("-- DECISIÓN: solo se cargan valores que figuran en los documentos de los")
     w("--   módulos; los números de módulo sin asignar se agregan después.")
+    w("START TRANSACTION;")
     for rel, cols, rows in SEEDS:
         w("INSERT INTO %s (%s) VALUES" % (q(rel), ", ".join(cols)))
-        w(",\n".join("    (%s)" % ", ".join(sql_str(v) for v in r) for r in rows) + ";")
-    w("")
+        w(",\n".join("    (%s)" % ", ".join(my_str(v) for v in r) for r in rows) + ";")
     w("COMMIT;")
+    text = "\n".join(L) + "\n"
+    assert "CASCADE" not in text.upper().replace("CASCADA", ""), "ON DELETE CASCADE no se usa"
+    for m in re.finditer(r"core\.fallar\('([^']*)'\)", text):
+        assert len(m.group(1)) <= 128, m.group(1)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(L) + "\n")
+        f.write(text)
+    # Capa programable tal como se carga (anexo del informe).
+    prog = text[text.index(PROG_BEGIN):text.index(PROG_END) + len(PROG_END)]
+    with open(os.path.join(os.path.dirname(path), "..", "informe", "mysql-programacion.sql"), "w",
+              encoding="utf-8") as f:
+        f.write(prog + "\n")
     return len(order)
+
+
+PROG_BEGIN = "-- >>> capa programable (procedimientos, funciones, triggers, vistas, evento y roles)"
+PROG_END = "-- <<< fin de la capa programable"
 
 
 # ---------------------------------------------------------------------------
