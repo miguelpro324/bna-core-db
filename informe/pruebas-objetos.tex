@@ -26,6 +26,9 @@ F12h & \nm{trg\_autorizacion\_bi} (C06) & Una autorización válida se registra 
 F12i & \nm{sp\_validar\_reglas\_autorizacion} & Dos autorizaciones aprobadas sin movimiento no superan juntas el saldo & Pasa \\
 F12j & \nm{trg\_autorizacion\_bu} (C07) & Extornar una autorización sin movimiento libera el tope y el saldo & Pasa \\
 F12k & Operación única (RN-BUS-002) & Una autorización solo se vincula al movimiento de su misma operación & Pasa \\
+F12l & Tope diario (RN-TOP-001) & Una autorización de ayer contabilizada hoy cuenta para el tope de ayer, no para el de hoy & Pasa \\
+F12m & Extorno (Tarjetas, C07) & El extorno hoy del movimiento de una autorización de ayer libera el tope de ayer, no el de hoy & Pasa \\
+F12n & \nm{trg\_autorizacion\_bu} (C07) & El extorno hoy de una autorización de ayer sin movimiento libera el tope de ayer y el saldo & Pasa \\
 F13 & \nm{trg\_autorizacion\_bd} (RN-ATM-003) & Una autorización no se borra; se extorna & Pasa \\
 F14a & \nm{trg\_cliente\_ref\_au} (INT-T07) & Si Clientes bloquea al cliente, se bloquean sus tarjetas & Pasa \\
 F14b & \nm{trg\_cliente\_ref\_au} (INT-T07) & Si Clientes da de baja al cliente, se cancelan sus tarjetas & Pasa \\

@@ -42,3 +42,13 @@ Para regenerar el DDL y los fragmentos del modelo:
 ```bash
 cd modelo && python3 modelo_bna.py ../informe
 ```
+
+## Limitaciones conocidas
+
+- **Retenciones sin vencimiento.** Una autorización AUTORIZADA que nunca se
+  contabiliza ni se extorna conserva para siempre su parte del tope diario y
+  su retención en el saldo disponible. Ningún documento de los módulos ni el
+  documento de tecnologías fija un plazo para liberarla, de modo que la base
+  no inventa uno; si el banco lo define, se implementa como
+  `tarjetas.marcar_tarjetas_vencidas()`: una función que se programa desde
+  fuera.

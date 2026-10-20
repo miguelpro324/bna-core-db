@@ -349,6 +349,59 @@ SELECT prueba.rechaza('F12k', 'Tarjetas', 'Operación única (RN-BUS-002)', 'Una
      UPDATE tarjetas.autorizacion SET uuid_transaccion = prueba.movimiento('CTA-PEN-1', 'RETIRO', 100, 'ATM')
       WHERE uuid_autorizacion = '9b000000-0000-4000-8000-000000000006'$q$,
   'ck_autorizacion_3');
+-- F12l a F12n: la autorización se aprueba un día (ayer, en la fecha de
+-- negocio de Lima) y su movimiento o su extorno llegan al día siguiente.
+SELECT prueba.verifica('F12l', 'Tarjetas', 'Tope diario (RN-TOP-001)', 'Una autorización de ayer contabilizada hoy cuenta para el tope de ayer, no para el de hoy',
+  $q$INSERT INTO tarjetas.autorizacion (uuid_autorizacion, tipo_operacion, monto, estado_autorizacion, id_terminal, id_tarjeta, num_cuenta, fecha_hora)
+     VALUES ('9b000000-0000-4000-8000-000000000007', 'RETIRO', 1000, 'AUTORIZADA', 'ATM-AQP-001', 'a0000000-0000-4000-8000-000000000001', 'CTA-PEN-1', now() - interval '1 day');
+     SELECT prueba.movimiento('CTA-PEN-1', 'RETIRO', 1000, 'ATM', NULL, '9b000000-0000-4000-8000-000000000007');
+     SELECT prueba.movimiento('CTA-PEN-1', 'RETIRO', 1500, 'ATM')$q$,
+  $q$SELECT (SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now() - interval '1 day')) = 1000
+        AND (SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now())) = 1500
+        AND (SELECT uuid_transaccion IS NOT NULL FROM tarjetas.autorizacion WHERE uuid_autorizacion = '9b000000-0000-4000-8000-000000000007')
+        AND (SELECT saldo_contable = 12500 AND saldo_disponible = 12500 FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1')$q$,
+  'ayer 1000.00; hoy 1500.00; vinculada; contable 12500.00; disponible 12500.00',
+  $q$SELECT 'ayer ' || coalesce((SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now() - interval '1 day'))::text, '0.00')
+       || '; hoy ' || coalesce((SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now()))::text, '0.00')
+       || CASE WHEN (SELECT uuid_transaccion IS NOT NULL FROM tarjetas.autorizacion WHERE uuid_autorizacion = '9b000000-0000-4000-8000-000000000007')
+               THEN '; vinculada' ELSE '; sin vincular' END
+       || (SELECT '; contable ' || saldo_contable || '; disponible ' || saldo_disponible FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1')$q$);
+SELECT prueba.verifica('F12m', 'Tarjetas', 'Extorno (Tarjetas, C07)', 'El extorno hoy del movimiento de una autorización de ayer libera el tope de ayer, no el de hoy',
+  $q$INSERT INTO tarjetas.autorizacion (uuid_autorizacion, tipo_operacion, monto, estado_autorizacion, id_terminal, id_tarjeta, num_cuenta, fecha_hora)
+     VALUES ('9b000000-0000-4000-8000-000000000008', 'RETIRO', 1000, 'AUTORIZADA', 'ATM-AQP-001', 'a0000000-0000-4000-8000-000000000001', 'CTA-PEN-1', now() - interval '1 day');
+     SELECT prueba.movimiento('CTA-PEN-1', 'RETIRO', 1000, 'ATM', NULL, '9b000000-0000-4000-8000-000000000008');
+     SELECT prueba.movimiento('CTA-PEN-1', 'RETIRO', 400, 'ATM');
+     UPDATE cuentas.movimiento SET estado_transaccion = 'EXTORNADO' WHERE uuid_transaccion = '9b000000-0000-4000-8000-000000000008'$q$,
+  $q$SELECT (SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now() - interval '1 day')) = 0
+        AND (SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now())) = 400$q$,
+  'ayer 0.00; hoy 400.00',
+  $q$SELECT 'ayer ' || coalesce((SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now() - interval '1 day'))::text, '0.00')
+       || '; hoy ' || coalesce((SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now()))::text, '0.00')$q$);
+SELECT prueba.verifica('F12n', 'Tarjetas', 'trg_autorizacion_bu (C07)', 'El extorno hoy de una autorización de ayer sin movimiento libera el tope de ayer y el saldo',
+  $q$INSERT INTO tarjetas.autorizacion (uuid_autorizacion, tipo_operacion, monto, estado_autorizacion, id_terminal, id_tarjeta, num_cuenta, fecha_hora)
+     VALUES ('9b000000-0000-4000-8000-000000000009', 'RETIRO', 1000, 'AUTORIZADA', 'ATM-AQP-001', 'a0000000-0000-4000-8000-000000000001', 'CTA-PEN-1', now() - interval '1 day');
+     SELECT prueba.movimiento('CTA-PEN-1', 'RETIRO', 400, 'ATM');
+     UPDATE tarjetas.autorizacion SET estado_autorizacion = 'EXTORNADA', codigo_respuesta = 'EXT'
+      WHERE uuid_autorizacion = '9b000000-0000-4000-8000-000000000009'$q$,
+  $q$SELECT (SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now() - interval '1 day')) = 0
+        AND (SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now())) = 400
+        AND (SELECT saldo_disponible FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1') = 14600$q$,
+  'ayer 0.00; hoy 400.00; disponible 14600.00',
+  $q$SELECT 'ayer ' || coalesce((SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now() - interval '1 day'))::text, '0.00')
+       || '; hoy ' || coalesce((SELECT monto_acumulado FROM core.consumo_diario WHERE num_cuenta = 'CTA-PEN-1' AND id_canal = 'ATM'
+              AND fecha_corte = core.fn_fecha_negocio(now()))::text, '0.00')
+       || '; disponible ' || (SELECT saldo_disponible FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1')$q$);
 SELECT prueba.rechaza('F13', 'Tarjetas', 'trg_autorizacion_bd (RN-ATM-003)', 'Una autorización no se borra; se extorna',
   $q$INSERT INTO tarjetas.autorizacion (tipo_operacion, monto, estado_autorizacion, id_terminal, id_tarjeta, num_cuenta)
      VALUES ('RETIRO', 100, 'AUTORIZADA', 'ATM-AQP-001', 'a0000000-0000-4000-8000-000000000001', 'CTA-PEN-1');

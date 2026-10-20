@@ -197,7 +197,9 @@ END $$;
 CREATE FUNCTION cuentas.fn_movimiento_aplicar()
 RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
-    v_nat CHAR(1);
+    v_nat     CHAR(1);
+    v_canal   VARCHAR(5);
+    v_momento TIMESTAMPTZ;
 BEGIN
     SELECT naturaleza INTO v_nat FROM cuentas.tipo_operacion WHERE tipo_operacion = NEW.tipo_operacion;
     IF TG_OP = 'INSERT' AND v_nat = 'D'
@@ -215,9 +217,20 @@ BEGIN
         IF v_nat = 'D' AND NEW.id_canal IS NOT NULL THEN
             PERFORM core.fn_consumo_sumar(NEW.num_cuenta, NEW.id_canal, core.fn_fecha_negocio(NEW.fecha_hora), NEW.monto);
         END IF;
-    ELSIF v_nat = 'D' AND NEW.id_canal IS NOT NULL THEN
-        -- Extorno: el monto deja de contar para el tope de su día (Tarjetas, C07).
-        PERFORM core.fn_consumo_sumar(NEW.num_cuenta, NEW.id_canal, core.fn_fecha_negocio(NEW.fecha_hora), -NEW.monto);
+    ELSIF v_nat = 'D' THEN
+        -- Extorno: el monto deja de contar para el tope del día y el canal en
+        -- que se comprometió (Tarjetas, C07): los de su autorización, si la
+        -- tiene, aunque el movimiento se haya registrado otro día.
+        SELECT coalesce(a.id_canal, t.id_canal), a.fecha_hora INTO v_canal, v_momento
+          FROM tarjetas.autorizacion a LEFT JOIN core.terminal t ON t.id_terminal = a.id_terminal
+         WHERE a.uuid_autorizacion = NEW.uuid_transaccion;
+        IF NOT FOUND THEN
+            v_canal := NEW.id_canal;
+            v_momento := NEW.fecha_hora;
+        END IF;
+        IF v_canal IS NOT NULL THEN
+            PERFORM core.fn_consumo_sumar(NEW.num_cuenta, v_canal, core.fn_fecha_negocio(v_momento), -NEW.monto);
+        END IF;
     END IF;
     RETURN NULL;
 END $$;

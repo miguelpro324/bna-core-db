@@ -4,8 +4,8 @@ Generado por `pruebas/postgres/run_tests.sh`. Las pruebas M reproducen en Postgr
 de la base unificada para MySQL; las F prueban los objetos portados e implementados;
 las R son las pruebas negativas originales del informe.
 
-- PostgreSQL 16.15: 91 pasan, 0 fallan, 6 N/A.
-- PostgreSQL 17.11: 91 pasan, 0 fallan, 6 N/A.
+- PostgreSQL 16.15: 94 pasan, 0 fallan, 6 N/A.
+- PostgreSQL 17.11: 94 pasan, 0 fallan, 6 N/A.
 
 | ID | Grupo | Referencia | Prueba | Esperado | Obtenido | PG 16.15 | PG 17.11 |
 |---|---|---|---|---|---|---|---|
@@ -74,6 +74,9 @@ las R son las pruebas negativas originales del informe.
 | F12i | Tarjetas | sp_validar_reglas_autorizacion | Dos autorizaciones aprobadas sin movimiento no superan juntas el saldo | Rechazo: BNA-SALDO | Rechazo: BNA-SALDO: saldo disponible insuficiente en CTA-PEN-2 (2000.00 < 3000.00) | pasa | pasa |
 | F12j | Tarjetas | trg_autorizacion_bu (C07) | Extornar una autorización sin movimiento libera el tope y el saldo | consumido 0.00; disponible 15000.00 | consumido 0.00; disponible 15000.00 | pasa | pasa |
 | F12k | Tarjetas | Operación única (RN-BUS-002) | Una autorización solo se vincula al movimiento de su misma operación | Rechazo: ck_autorizacion_3 | Rechazo: new row for relation "autorizacion" violates check constraint "ck_autorizacion_3" | pasa | pasa |
+| F12l | Tarjetas | Tope diario (RN-TOP-001) | Una autorización de ayer contabilizada hoy cuenta para el tope de ayer, no para el de hoy | ayer 1000.00; hoy 1500.00; vinculada; contable 12500.00; disponible 12500.00 | ayer 1000.00; hoy 1500.00; vinculada; contable 12500.00; disponible 12500.00 | pasa | pasa |
+| F12m | Tarjetas | Extorno (Tarjetas, C07) | El extorno hoy del movimiento de una autorización de ayer libera el tope de ayer, no el de hoy | ayer 0.00; hoy 400.00 | ayer 0.00; hoy 400.00 | pasa | pasa |
+| F12n | Tarjetas | trg_autorizacion_bu (C07) | El extorno hoy de una autorización de ayer sin movimiento libera el tope de ayer y el saldo | ayer 0.00; hoy 400.00; disponible 14600.00 | ayer 0.00; hoy 400.00; disponible 14600.00 | pasa | pasa |
 | F13 | Tarjetas | trg_autorizacion_bd (RN-ATM-003) | Una autorización no se borra; se extorna | Rechazo: ERR-TAR-009 | Rechazo: ERR-TAR-009: tarjetas.autorizacion es de solo inserción (DELETE no permitido) | pasa | pasa |
 | F14a | Tarjetas | trg_cliente_ref_au (INT-T07) | Si Clientes bloquea al cliente, se bloquean sus tarjetas | BLOQUEADA por MODULO_CLIENTES | BLOQUEADA por MODULO_CLIENTES | pasa | pasa |
 | F14b | Tarjetas | trg_cliente_ref_au (INT-T07) | Si Clientes da de baja al cliente, se cancelan sus tarjetas | CANCELADA | CANCELADA | pasa | pasa |
