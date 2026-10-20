@@ -1,0 +1,244 @@
+
+======================================================================
+ RESULTADO DE LAS COMPROBACIONES
+ [ OK  ] el script se comporta como deberia
+ [FALLA] el script hace algo distinto de lo correcto (se explica abajo)
+ Bug N  = numero del hallazgo en la revision; '-' = comprobacion adicional
+======================================================================
+
+[FALLA]  1. El script de carga encuentra el archivo SQL  (bug 1)
+   Que se hizo: Se leyo la ruta que usa cargar_bna.ps1 por defecto (carpeta
+                del .ps1 + $Script).
+   Correcto:    Que apunte a Trabajo_hecho\BD\99_bna_unificado.sql
+   Obtenido:    Busca Trabajo_hecho\99_bna_unificado.sql, que no existe (el
+                archivo esta en BD\)
+   Significa:   Quien siga la guia y ejecute .\cargar_bna.ps1 recibe 'No se
+                encontro el script' y no se carga nada. Lo mismo pasa con los
+                comandos manuales del README y la guia.
+
+[ OK  ]  2. El script unificado carga sin errores en MySQL 8.4
+   Que se hizo: Se ejecuto BD/99_bna_unificado.sql completo con el cliente
+                mysql.
+   Correcto:    Termina sin ningun ERROR
+   Obtenido:    Termino sin errores (22 avisos de obsolescencia, inofensivos:
+                TINYINT(1) y sql_mode)
+
+[ OK  ]  3. La base tiene los objetos que promete la guia
+   Que se hizo: Se contaron tablas / vistas / triggers / rutinas / eventos en
+                la base cargada.
+   Correcto:    66 / 9 / 7 / 3 / 1, como dicen GUIA_EJECUCION.md y
+                verificar_bna.ps1
+   Obtenido:    66 / 9 / 7 / 3 / 1
+
+[FALLA]  4. Un deposito actualiza el saldo de la cuenta  (bug 3)
+   Que se hizo: El propio script (13_consultas.sql) abre la cuenta 0011000001
+                con saldo 0 y le deposita S/500.
+   Correcto:    saldo_contable = 500.00
+   Obtenido:    saldo_contable = 0.00
+   Significa:   El movimiento queda registrado pero el saldo nunca cambia:
+                ningun trigger ni procedimiento lo actualiza.
+
+[FALLA]  5. Pagar capital reduce la deuda del credito  (bug 4)
+   Que se hizo: El script crea un credito de S/10000 y paga la cuota 1 con
+                sp_aplicar_pago (S/300 de capital).
+   Correcto:    saldo_capital = 9700.00
+   Obtenido:    saldo_capital = 10000.00
+   Significa:   La cuota figura PAGADA, pero el cliente sigue debiendo los
+                S/10000 completos.
+
+[FALLA]  6. fn_uuid_v7() guarda la hora correcta  (bug 2)
+   Que se hizo: Se genero un UUID v7 con fn_uuid_v7() y se leyo la hora que
+                lleva dentro (sus primeros 48 bits).
+   Correcto:    La hora del UUID coincide con la hora actual (diferencia 0 ms,
+                a lo sumo 1-2 ms)
+   Obtenido:    La hora del UUID esta 591 ms en el futuro
+   Significa:   La funcion suma dos veces los milisegundos; el error va de 0 a
+                999 ms segun el instante.
+
+[FALLA]  7. Los UUID v7 se ordenan por fecha de creacion  (bug 2)
+   Que se hizo: Con la formula de fn_uuid_v7() se calculo la hora para
+                12:00:00.900 y para 12:00:01.100 (200 ms despues).
+   Correcto:    El UUID de 12:00:00.900 se ordena antes que el de 12:00:01.100
+   Obtenido:    El UUID de 12:00:00.900 se ordena DESPUES que el de
+                12:00:01.100
+   Significa:   La documentacion promete IDs "ordenables por tiempo"; cerca
+                del cambio de segundo eso no se cumple.
+
+[FALLA]  8. Los IDs tienen que ser UUID validos  (bug 7)
+   Que se hizo: Se inserto un cliente con id_cliente = 'c2' (no es un UUID).
+   Correcto:    Rechazo: un UUID tiene 36 caracteres con formato 8-4-4-4-12
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   CHAR(36) admite cualquier texto; en PostgreSQL el tipo UUID lo
+                impide.
+
+[FALLA]  9. Una orden de desembolso respeta su solicitud  (bug 7)
+   Que se hizo: Se creo una orden para la solicitud de Juan Perez (S/10000) a
+                nombre de otra clienta, en dolares y por 99999.
+   Correcto:    Rechazo: el cliente, la moneda y el monto salen de la
+                solicitud aprobada
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   des_orden repite id_cliente y moneda en vez de tomarlos de la
+                solicitud, asi que pueden contradecirla.
+
+[FALLA] 10. Un movimiento de cuenta es coherente  (bug 7)
+   Que se hizo: En la cuenta en soles se registro un RETIRO marcado como abono
+                (C), en dolares, con saldo posterior -12345.
+   Correcto:    Rechazo: un retiro es siempre debito, la moneda es la de la
+                cuenta y el saldo no puede ser negativo
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   tipo_movimiento y moneda se guardan aparte aunque dependen del
+                tipo de operacion y de la cuenta.
+
+[FALLA] 11. El saldo disponible no supera al contable  (bug 7)
+   Que se hizo: Se puso saldo_disponible = 1000 y saldo_contable = 0 en la
+                misma cuenta.
+   Correcto:    Rechazo: no se puede disponer de mas dinero del que hay (CHECK
+                del informe)
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   Una cuenta podria permitir retirar dinero que no existe.
+
+[FALLA] 12. El total de una cuota es la suma de sus partes  (bug 7)
+   Que se hizo: Se creo una cuota con capital 1 e interes 1, pero con
+                cuota_total 9999.
+   Correcto:    Rechazo, o mejor aun: que cuota_total no se guarde y se
+                calcule (1 + 1 = 2)
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   Al guardar un dato derivado, el total cobrado puede no
+                coincidir con lo que se debe.
+
+[FALLA] 13. sp_aplicar_pago no aplica mas de lo pagado ni cuenta la mora como cuota  (bug 4)
+   Que se hizo: Se registro un pago de S/1 y con sp_aplicar_pago se aplicaron
+                9999 a la mora de la cuota 2.
+   Correcto:    Error: no se pueden aplicar 9999 de un pago de 1; y pagar mora
+                no cancela capital ni interes
+   Obtenido:    Se aplico sin error; la cuota quedo PAGADA con monto_pagado =
+                9999.00
+   Significa:   Una cuota puede darse por pagada sin que se haya pagado su
+                capital ni su interes.
+
+[FALLA] 14. Una solicitud genera un solo credito  (bug 7)
+   Que se hizo: Se creo un segundo credito para la misma solicitud, a nombre
+                de otra clienta.
+   Correcto:    Rechazo: en el informe el credito es 1:1 con su orden y su
+                calendario
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   Un mismo prestamo aprobado podria cobrarse dos veces, incluso
+                a personas distintas.
+
+[FALLA] 15. Una tarjeta tiene datos validos  (bug 7)
+   Que se hizo: Se emitio una tarjeta con ultimos4 = 'ABCD', emitida en 2026 y
+                que vence en 2020.
+   Correcto:    Rechazo: ultimos4 son 4 digitos y el vencimiento es posterior
+                a la emision
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   El informe tiene CHECK para ambos casos; aqui no existen.
+
+[FALLA] 16. Una tarjeta matriz cuelga de una credencial de tipo matriz  (bug 7)
+   Que se hizo: Se creo un PIN de 99 digitos y se le colgo una tarjeta matriz
+                de coordenadas.
+   Correcto:    Rechazo: el PIN tiene 4 digitos y la matriz no pertenece a un
+                PIN
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   La longitud depende del tipo de credencial (problema de 2FN
+                que el informe resolvio con TIPO_CREDENCIAL).
+
+[FALLA] 17. La coordenada pedida existe en la matriz  (bug 7)
+   Que se hizo: Se registro un intento pidiendo la coordenada Z9 (la matriz va
+                de A1 a H8).
+   Correcto:    Rechazo: fila A-H y columna 1-8
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   El comentario dice "coordenada validada por CHECK", pero el
+                CHECK solo verifica que tenga 2 caracteres.
+
+[FALLA] 18. Un caso de captacion apunta a una solicitud real  (bug 7)
+   Que se hizo: Se creo un caso con id_solicitud = 'no-existe'.
+   Correcto:    Rechazo por clave foranea
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   cap_caso.id_solicitud no tiene FK; ademas
+                sol_solicitud.id_caso guarda el mismo vinculo al reves.
+
+[FALLA] 19. La auditoria solo registra eventos sobre registros reales
+   Que se hizo: Se audito una accion del modulo 'XYZ' sobre la tabla
+                'tabla_que_no_existe', registro 'nada'.
+   Correcto:    Rechazo: en el informe la entidad auditada es una FK a
+                ENTIDAD_AUDITADA
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   Es el caso de 3FN que se resolvio en el informe; aqui la
+                referencia sigue siendo texto libre.
+
+[FALLA] 20. Un asiento contable cuadra y cae en su periodo  (bug 7)
+   Que se hizo: Se registro un asiento del 15 de octubre en el periodo de
+                enero, con S/100 en el debe y nada en el haber.
+   Correcto:    Rechazo: en partida doble el debe y el haber suman lo mismo, y
+                la fecha cae dentro del periodo
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   La contabilidad puede quedar descuadrada; ninguna regla lo
+                controla.
+
+[FALLA] 21. Una reversion la autoriza otra persona
+   Que se hizo: Se pidio una reversion con admin.bna y se autorizo con
+                asesor.bna. En el seed, ambos usuarios son el mismo empleado.
+   Correcto:    Rechazo: quien solicita y quien autoriza deben ser personas
+                distintas
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   El CHECK compara usuarios, no personas; con los datos de
+                ejemplo una misma persona se autoriza a si misma.
+
+[FALLA] 22. Un retiro se cuenta una sola vez en el tope diario  (bug 5)
+   Que se hizo: Se hizo UN retiro de S/600 en cajero: Tarjetas registra la
+                autorizacion y Cuentas registra el debito (mismo uuid).
+   Correcto:    Acumulado del dia = 600.00
+   Obtenido:    Acumulado del dia = 1200.00
+   Significa:   Dos triggers suman la misma operacion; el cliente llega a su
+                tope con la mitad de lo que retiro.
+
+[FALLA] 23. Una autorizacion aprobada despues tambien cuenta para el tope  (bug 5)
+   Que se hizo: Se registro un retiro de S/5000 como PENDIENTE y luego se
+                cambio a APROBADA.
+   Correcto:    El acumulado sube de 1200.00 a 6200.00
+   Obtenido:    El acumulado sigue en 1200.00
+   Significa:   El trigger solo mira el INSERT; lo que se aprueba con UPDATE
+                nunca se suma.
+
+[FALLA] 24. Se respeta el tope diario del cajero  (bug 5)
+   Que se hizo: Se aprobo un retiro de S/5000 en cajero; el tope ATM del seed
+                es S/700 por dia.
+   Correcto:    Rechazo: supera el tope diario del canal
+   Obtenido:    MySQL lo acepto sin error
+   Significa:   Los triggers solo acumulan; nada compara el acumulado con
+                limite_canal.
+
+[FALLA] 25. v_tope_restante_hoy muestra el tope de cada cuenta  (bug 5)
+   Que se hizo: Se consulto la vista despues de los retiros anteriores.
+   Correcto:    Una fila por cuenta y canal, con su tope restante
+   Obtenido:    Una sola fila para todo el canal ATM: consumido 5600.00 entre
+                todas las cuentas
+   Significa:   Basta con que unos pocos clientes retiren para que la vista
+                muestre el tope agotado para todos.
+
+[FALLA] 26. Al bloquear una tarjeta se guarda el motivo  (bug 6)
+   Que se hizo: Se llamo sp_bloquear_tarjeta(k1, 'Robo reportado', 'CLIENTE').
+   Correcto:    Historial: motivo = Robo reportado, origen = CLIENTE
+   Obtenido:    Historial: motivo = Cambio de estado, origen = SISTEMA
+   Significa:   El procedimiento recibe motivo y origen pero no los usa; el
+                historial pierde por que se bloqueo.
+
+[ OK  ] 27. El diccionario de datos describe la base real
+   Que se hizo: Se compararon las columnas de diccionario_datos.md con las de
+                la base cargada.
+   Correcto:    Las mismas columnas en las mismas tablas
+   Obtenido:    Coinciden las 521 columnas
+
+[FALLA] 28. El diagrama Mermaid muestra todas las relaciones
+   Que se hizo: Se contaron las relaciones de mer_bna.mermaid y las claves
+                foraneas de la base.
+   Correcto:    Una relacion por clave foranea (109) y todas las tablas
+                presentes
+   Obtenido:    68 relaciones de 109; faltan las tablas: auditoria_evento,
+                eva_regla
+   Significa:   El diagrama es parcial: no sirve para ver todo el modelo
+                aunque su leyenda diga que las flechas son las FKs.
+
+----------------------------------------------------------------------
+ 28 comprobaciones: 3 OK, 25 FALLA
+----------------------------------------------------------------------

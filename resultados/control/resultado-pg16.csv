@@ -1,0 +1,100 @@
+L01,Carga,Script DDL,El script completo se ejecuta sobre una base vacía,Carga sin errores,Carga sin errores,pasa
+M01,MySQL,Comprobación 1 (bug 1),El script de carga encuentra el archivo SQL,—,"N/A — prevenido por diseño: no hay script de carga con rutas; el DDL es un único archivo (sql/bna_core.sql) que se carga directamente, y su carga se prueba en L01.",N/A
+M04,MySQL,Comprobación 4 (bug 3),Un depósito actualiza el saldo de la cuenta,saldo 5000.00 -> 5500.00,saldo 5000.00 -> 0.00,falla
+M05,MySQL,Comprobación 5 (bug 4),Pagar reduce la deuda del crédito,deuda 10300.00 -> 7200.00,Error: function creditos.aplicar_pago(unknown) does not exist,falla
+M06,MySQL,Comprobación 6 (bug 2),fn_uuid_v7() guarda la hora correcta,—,"N/A — no aplica: la función no se porta; los UUID los genera gen_random_uuid(), nativa de PostgreSQL (versión 4, sin marca de tiempo).",N/A
+M07,MySQL,Comprobación 7 (bug 2),Los UUID v7 se ordenan por fecha de creación,—,N/A — no aplica: por la misma razón que M06; el orden de las bitácoras lo da su identificador IDENTITY y su marca de tiempo.,N/A
+M08,MySQL,Comprobación 8 (bug 7),Un identificador debe ser un UUID válido,Rechazo: invalid input syntax for type uuid,"Rechazo: invalid input syntax for type uuid: ""c2""",pasa
+M09a,MySQL,Comprobación 9 (bug 7),La orden no abona en la cuenta de otro cliente,Rechazo: BNA-CUENTA-DESTINO.*no pertenece,Aceptada sin error,falla
+M09b,MySQL,Comprobación 9 (bug 7),La orden no abona en una cuenta de otra moneda,Rechazo: BNA-CUENTA-DESTINO.*USD,Aceptada sin error,falla
+M09c,MySQL,Comprobación 9 (bug 7),La orden no supera el límite aprobado,Rechazo: BNA-IMPORTE,Aceptada sin error,falla
+M10a,MySQL,Comprobación 10 (bug 7),Un retiro no deja el saldo en negativo,Rechazo: BNA-SALDO,Aceptada sin error,falla
+M10b,MySQL,Comprobación 10 (bug 7),Un movimiento va en la moneda de su cuenta,Rechazo: BNA-MONEDA,Aceptada sin error,falla
+M11,MySQL,Comprobación 11 (bug 7),El saldo disponible no supera al contable,Rechazo: ck_cuenta_ahorro_1,"Rechazo: new row for relation ""cuenta_ahorro"" violates check constraint ""ck_cuenta_ahorro_1""",pasa
+M12,MySQL,Comprobación 12 (bug 7),El total de la cuota es la suma de sus partes,—,"N/A — prevenido por diseño: CUOTA no guarda el total; es un dato derivado de capital, interés y otros conceptos, eliminado en la normalización.",N/A
+M13a,MySQL,Comprobación 13 (bug 4),No se aplica más de lo pagado,Rechazo: BNA-PAGO.*se aplicarían,Aceptada sin error,falla
+M13b,MySQL,Comprobación 13 (bug 4),No se aplica más del saldo de la cuota,Rechazo: BNA-PAGO.*solo debe,Aceptada sin error,falla
+M14a,MySQL,Comprobación 14 (bug 7),Una orden genera un solo crédito,Rechazo: uk_credito,"Rechazo: duplicate key value violates unique constraint ""uk_credito_1""",pasa
+M14b,MySQL,Comprobación 14 (bug 7),"Una solicitud tiene una sola orden confirmada, aun en otra ronda",Rechazo: BNA-ORDEN-UNICA,Aceptada sin error,falla
+M15a,MySQL,Comprobación 15 (bug 7),Los últimos cuatro dígitos son numéricos,Rechazo: ck_tarjeta_2,"Rechazo: new row for relation ""tarjeta"" violates check constraint ""ck_tarjeta_2""",pasa
+M15b,MySQL,Comprobación 15 (bug 7),La tarjeta vence después de emitirse,Rechazo: ck_tarjeta_1,"Rechazo: new row for relation ""tarjeta"" violates check constraint ""ck_tarjeta_1""",pasa
+M16,MySQL,Comprobación 16 (bug 7),La matriz no es una credencial de la tarjeta,Rechazo: ck_credencial_1,"Rechazo: new row for relation ""credencial"" violates check constraint ""ck_credencial_1""",pasa
+M17,MySQL,Comprobación 17 (bug 7),La coordenada pedida existe en la matriz,Rechazo: ck_intento_autenticacion_1,"Rechazo: new row for relation ""intento_autenticacion"" violates check constraint ""ck_intento_autenticacion_1""",pasa
+M18,MySQL,Comprobación 18 (bug 7),Una referencia apunta a un registro real,Rechazo: violates foreign key constraint,"Rechazo: insert or update on table ""evaluacion"" violates foreign key constraint ""fk_evaluacion_1""",pasa
+M19,MySQL,Comprobación 19,La auditoría solo registra eventos sobre registros reales,Rechazo: fk_evento_auditoria_2,"Rechazo: insert or update on table ""evento_auditoria"" violates foreign key constraint ""fk_evento_auditoria_2""",pasa
+M20a,MySQL,Comprobación 20 (bug 7),Un asiento descuadrado se rechaza al confirmar,Rechazo: BNA-PARTIDA-DOBLE,Aceptada sin error,falla
+M21,MySQL,Comprobación 21,Una reversión la autoriza otra persona,—,"N/A — prevenido por diseño: el modelo no guarda usuarios ni empleados; el solicitante y la autorización son identificadores que emite Seguridad, que es quien controla a las personas.",N/A
+M22,MySQL,Comprobación 22 (bug 5),Un retiro se cuenta una sola vez en el tope y en el saldo,consumido 600.00; contable 4400.00; disponible 4400.00; movimiento vinculado,consumido 0; contable 0.00; disponible 0.00; movimiento sin vincular,falla
+M23,MySQL,Comprobación 23 (bug 5),Una autorización aprobada después también respeta el tope,Rechazo: ERR-TAR-007,Aceptada sin error,falla
+M24a,MySQL,Comprobación 24 (bug 5),Se respeta el tope diario del cajero (movimiento),Rechazo: RN-TOP-001,Aceptada sin error,falla
+M24b,MySQL,Comprobación 24 (bug 5),Se respeta el tope diario del cajero (autorización),Rechazo: ERR-TAR-007,Aceptada sin error,falla
+M24c,MySQL,Comprobación 24 (bug 5),Dos autorizaciones aprobadas sin movimiento no superan juntas el tope,Rechazo: ERR-TAR-007,Aceptada sin error,falla
+M25,MySQL,Comprobación 25 (bug 5),v_tope_restante_hoy muestra el tope de cada tarjeta y cuenta,T1 1500.00; T2 900.00,"Error: relation ""tarjetas.v_tope_restante_hoy"" does not exist",falla
+M26,MySQL,Comprobación 26 (bug 6),Al bloquear una tarjeta se guarda el motivo,Robo reportado / CLIENTE,"Error: function tarjetas.bloquear_tarjeta(unknown, unknown, unknown) does not exist",falla
+M28,MySQL,Comprobación 28,El diagrama muestra todas las relaciones,—,"N/A — prevenido por diseño: los diagramas, las tablas del informe y el DDL se generan del mismo modelo (modelo/modelo_bna.py), de modo que no pueden divergir.",N/A
+F01,Tarjetas,trg_tarjeta_bi (RF-TAR-005),Solo se emite tarjeta a un cliente ACTIVO,Rechazo: ERR-TAR-001,Aceptada sin error,falla
+F02,Tarjetas,trg_tarjeta_ai (RN-SEG-002),La emisión queda en el historial y en la bandeja hacia Seguridad,historial 1; evento EMISION_TARJETA 1,historial 0; evento EMISION_TARJETA 0,falla
+F03,Tarjetas,trg_tarjeta_bu (RN-TAR-003),Una tarjeta CANCELADA no cambia de estado,Rechazo: ERR-TAR-002,Aceptada sin error,falla
+F04,Tarjetas,trg_tarjeta_bu (RN-TAR-003),Una tarjeta VENCIDA solo se cancela,Rechazo: ERR-TAR-002,Aceptada sin error,falla
+F05,Tarjetas,trg_tarjeta_bu (RN-TAR-004),El cliente no puede desbloquear su tarjeta,Rechazo: ERR-TAR-004,"Rechazo: function tarjetas.bloquear_tarjeta(unknown, unknown, unknown) does not exist",falla
+F06,Tarjetas,trg_tarjeta_au (RN-TAR-004),El desbloqueo por un operador reinicia los intentos,ACTIVA; intentos 0,"Error: function tarjetas.bloquear_tarjeta(unknown, unknown, unknown) does not exist",falla
+F07,Tarjetas,Historial (RN-SEG-002),El estado de la tarjeta solo cambia registrando el historial,Rechazo: RN-SEG-002,Aceptada sin error,falla
+F08,Tarjetas,trg_intento_ai (RN-TAR-004),El tercer intento fallido bloquea la tarjeta y avisa a Seguridad,BLOQUEADA; evento BLOQUEO_POR_INTENTOS 1,ACTIVA; evento BLOQUEO_POR_INTENTOS 0,falla
+F09,Tarjetas,trg_intento_ai (RN-TAR-004),Un intento exitoso reinicia el contador,intentos 0,intentos 0,pasa
+F10,Tarjetas,trg_intento_ai (RN-TAR-004),El tercer fallo de la matriz la bloquea junto con la tarjeta,matriz BLOQUEADA; tarjeta BLOQUEADA,matriz ACTIVA; tarjeta ACTIVA,falla
+F11a,Tarjetas,trg_intento_bu (RN-SEG-002),La bitácora de intentos no se modifica,Rechazo: ERR-TAR-009,Aceptada sin error,falla
+F11b,Tarjetas,trg_historial_bd (RN-SEG-002),El historial de estados no se borra,Rechazo: ERR-TAR-009,Aceptada sin error,falla
+F11c,Tarjetas,trg_historial (RN-SEG-002),El historial no se vacía con TRUNCATE,Rechazo: ERR-TAR-009,Aceptada sin error,falla
+F11d,Cobranza,Bitácora de auditoría,La auditoría no se modifica,Rechazo: BNA-SOLO-INSERCION,Aceptada sin error,falla
+F11e,CORE,Asientos inmutables,Un asiento no se modifica,Rechazo: BNA-SOLO-INSERCION,Aceptada sin error,falla
+F11f,Solicitud,Historial de la solicitud,El historial de la solicitud no se borra,Rechazo: BNA-SOLO-INSERCION,Aceptada sin error,falla
+F12a,Tarjetas,trg_autorizacion_bi (RN-TAR-003),No se autoriza con una tarjeta bloqueada,Rechazo: ERR-TAR-003.*no es operativa,"Rechazo: function tarjetas.bloquear_tarjeta(unknown, unknown, unknown) does not exist",falla
+F12b,Tarjetas,trg_autorizacion_bi (RN-TAR-003),No se autoriza con una tarjeta vencida,Rechazo: ERR-TAR-003.*venció,Aceptada sin error,falla
+F12c,Tarjetas,trg_autorizacion_bi (RN-ATM-005),El cajero no opera una cuenta mancomunada conjunta,Rechazo: ERR-TAR-008,Aceptada sin error,falla
+F12d,Tarjetas,trg_autorizacion_bi (RN-BD-002),La Billetera Digital no opera en dólares,Rechazo: ERR-TAR-006,Aceptada sin error,falla
+F12e,Tarjetas,trg_autorizacion_bi,No se autoriza en una terminal inactiva,Rechazo: ERR-TAR-006.*terminal,Aceptada sin error,falla
+F12f,Tarjetas,sp_validar_reglas_autorizacion,No se autoriza más que el saldo disponible,Rechazo: BNA-SALDO,Aceptada sin error,falla
+F12g,Tarjetas,trg_autorizacion_bu (RN-ATM-007),Una autorización rechazada no pasa a autorizada,Rechazo: RN-ATM-007,Aceptada sin error,falla
+F12h,Tarjetas,trg_autorizacion_bi (C06),Una autorización válida se registra,registrada,registrada,pasa
+F12i,Tarjetas,sp_validar_reglas_autorizacion,Dos autorizaciones aprobadas sin movimiento no superan juntas el saldo,Rechazo: BNA-SALDO,Aceptada sin error,falla
+F12j,Tarjetas,trg_autorizacion_bu (C07),Extornar una autorización sin movimiento libera el tope y el saldo,consumido 0.00; disponible 15000.00,consumido 0.00; disponible 0.00,falla
+F12k,Tarjetas,Operación única (RN-BUS-002),Una autorización solo se vincula al movimiento de su misma operación,Rechazo: ck_autorizacion_3,Aceptada sin error,falla
+F12l,Tarjetas,Tope diario (RN-TOP-001),"Una autorización de ayer contabilizada hoy cuenta para el tope de ayer, no para el de hoy",ayer 1000.00; hoy 1500.00; vinculada; contable 12500.00; disponible 12500.00,Error: function core.fn_fecha_negocio(timestamp with time zone) does not exist,falla
+F12m,Tarjetas,"Extorno (Tarjetas, C07)","El extorno hoy del movimiento de una autorización de ayer libera el tope de ayer, no el de hoy",ayer 0.00; hoy 400.00,Error: function core.fn_fecha_negocio(timestamp with time zone) does not exist,falla
+F12n,Tarjetas,trg_autorizacion_bu (C07),El extorno hoy de una autorización de ayer sin movimiento libera el tope de ayer y el saldo,ayer 0.00; hoy 400.00; disponible 14600.00,Error: function core.fn_fecha_negocio(timestamp with time zone) does not exist,falla
+F13,Tarjetas,trg_autorizacion_bd (RN-ATM-003),Una autorización no se borra; se extorna,Rechazo: ERR-TAR-009,Aceptada sin error,falla
+F14a,Tarjetas,trg_cliente_ref_au (INT-T07),"Si Clientes bloquea al cliente, se bloquean sus tarjetas",BLOQUEADA por MODULO_CLIENTES,(sin dato),falla
+F14b,Tarjetas,trg_cliente_ref_au (INT-T07),"Si Clientes da de baja al cliente, se cancelan sus tarjetas",CANCELADA,ACTIVA,falla
+F15,Tarjetas,ev_marcar_tarjetas_vencidas (RN-TAR-003),marcar_tarjetas_vencidas() vence las tarjetas cuya fecha pasó,1 tarjeta; VENCIDA por SISTEMA,Error: function tarjetas.marcar_tarjetas_vencidas() does not exist,falla
+F16a,Cobranza,Crédito (decisión I15),El crédito nace de una orden CONFIRMADA,Rechazo: BNA-CREDITO.*CONFIRMADA,Aceptada sin error,falla
+F16b,Cobranza,Crédito (decisión I15),El calendario del crédito es de la solicitud de su orden,Rechazo: BNA-CREDITO.*no pertenece,"Rechazo: duplicate key value violates unique constraint ""uk_credito_1""",falla
+F16c,Cobranza,Crédito (Solicitud),El crédito usa el calendario OFICIAL,Rechazo: BNA-CREDITO.*OFICIAL,"Rechazo: duplicate key value violates unique constraint ""uk_credito_1""",falla
+F17a,Cobranza,Aplicación de pagos,Un pago no se aplica a cuotas de otro crédito,Rechazo: BNA-PAGO.*no pertenece,Aceptada sin error,falla
+F17b,Cobranza,Aplicación de pagos,Solo se aplica un pago CONFIRMADO,Rechazo: BNA-PAGO.*CONFIRMADO,Aceptada sin error,falla
+F18,Cobranza,sp_aplicar_pago (Cobranza),aplicar_pago() reparte el pago de la cuota más antigua a la siguiente,PAGADA 0.00; PAGADA 0.00; PARCIAL 3200.00,Error: function creditos.aplicar_pago(unknown) does not exist,falla
+F19,Cobranza,Estado del crédito (Cobranza),"Pagadas todas las cuotas, el crédito queda CANCELADO",CANCELADO,Error: function creditos.aplicar_pago(unknown) does not exist,falla
+F20,Cobranza,Aplicación de pagos,Una aplicación de pago no se modifica,Rechazo: BNA-SOLO-INSERCION|BNA-PAGO,Rechazo: function creditos.aplicar_pago(unknown) does not exist,falla
+F21a,Cuentas,Estado de la cuenta (Cuentas),Una cuenta BLOQUEADA no admite débitos,Rechazo: BNA-ESTADO-CUENTA,Aceptada sin error,falla
+F21b,Cuentas,Estado de la cuenta (Cuentas),Una cuenta BLOQUEADA_PREVENTIVA admite créditos,saldo 5100.00,saldo 0.00,falla
+F22,Cuentas,"Extorno (Tarjetas, C07)",El extorno devuelve el monto al tope del día,consumido hoy 0.00,(sin dato),falla
+F23,Cuentas,Movimiento inmutable,El importe de un movimiento no se modifica,Rechazo: BNA-MOVIMIENTO,Aceptada sin error,falla
+F24,CORE,Partida doble,Un asiento sin líneas se rechaza al confirmar,Rechazo: BNA-PARTIDA-DOBLE,Aceptada sin error,falla
+F25,Tarjetas,v_tarjeta_resumen (PCI-DSS),La vista enmascara el número y muestra el vencimiento MM/AA,4557 88** **** 1234; 01/31; operativa,"Error: relation ""tarjetas.v_tarjeta_resumen"" does not exist",falla
+F26,Tarjetas,v_consumo_diario (RN-TOP-001),"La vista suma lo autorizado por tarjeta, canal, moneda y día",ATM PEN hoy: 500.00 en 2 operaciones,"Error: relation ""tarjetas.v_consumo_diario"" does not exist",falla
+F27,Tarjetas,v_credenciales_en_riesgo (RN-TAR-004),La vista muestra los intentos acumulados y restantes,"PIN_ATM: 1 fallido, 2 restantes","Error: relation ""tarjetas.v_credenciales_en_riesgo"" does not exist",falla
+F28,Desembolso,des_v_ordenes_inciertas,La vista lista las órdenes con resultado incierto en el CORE,DES-2026-000003,"Error: relation ""creditos.v_ordenes_inciertas"" does not exist",falla
+F29,Desembolso,des_v_entregas_pendientes,La vista lista las entregas que superan dos reintentos,"1 entrega, 3 intentos","Error: relation ""creditos.v_entregas_pendientes"" does not exist",falla
+F30,Desembolso,des_v_conciliacion_diaria,La vista cuadra lo ordenado con lo abonado por fecha y moneda,"PEN: ordenado 10000.00, abonado 10000.00, sin abono 0","Error: relation ""creditos.v_conciliacion_diaria"" does not exist",falla
+F31,Índices,Consultas de Tarjetas y Desembolso,Existen los índices de consulta y ninguno repite a otro de clave foránea,8 índices de consulta; 0 redundantes,0 índices de consulta; 5 redundantes,falla
+R1,Regresión,Pruebas negativas del DDL,Evento de auditoría sobre un registro no registrado como auditable,Rechazo: fk_evento_auditoria_2,"Rechazo: insert or update on table ""evento_auditoria"" violates foreign key constraint ""fk_evento_auditoria_2""",pasa
+R2,Regresión,Pruebas negativas del DDL,Intento con coordenada para una credencial que no es la matriz,Rechazo: ck_intento_autenticacion_4,"Rechazo: new row for relation ""intento_autenticacion"" violates check constraint ""ck_intento_autenticacion_4""",pasa
+R3,Regresión,Pruebas negativas del DDL,Intento con terminal y canal a la vez,Rechazo: ck_intento_autenticacion_5,"Rechazo: new row for relation ""intento_autenticacion"" violates check constraint ""ck_intento_autenticacion_5""",pasa
+R4,Regresión,Pruebas negativas del DDL,Credencial de tipo TOKEN_MATRIZ,Rechazo: ck_credencial_1,"Rechazo: new row for relation ""credencial"" violates check constraint ""ck_credencial_1""",pasa
+R5,Regresión,Pruebas negativas del DDL,Autorización sobre una cuenta inexistente,Rechazo: violates foreign key constraint,"Rechazo: insert or update on table ""autorizacion"" violates foreign key constraint ""fk_autorizacion_5""",pasa
+R6,Regresión,Pruebas negativas del DDL,Segundo cliente con el mismo DNI,Rechazo: uk_cliente_1,"Rechazo: duplicate key value violates unique constraint ""uk_cliente_1""",pasa
+R7,Regresión,Pruebas negativas del DDL,Segunda orden CONFIRMADA para la misma aprobación,Rechazo: BNA-ORDEN-UNICA|ux_orden_confirmada,"Rechazo: duplicate key value violates unique constraint ""ux_orden_confirmada""",pasa
+R8,Regresión,Pruebas negativas del DDL,Borrar una moneda en uso,Rechazo: violates foreign key constraint,"Rechazo: update or delete on table ""moneda"" violates foreign key constraint ""fk_asiento_contable_1"" on table ""asiento_contable""",pasa
+M20b,MySQL,Comprobación 20 (bug 7),Un asiento descuadrado se rechaza en un COMMIT real,Rechazo: BNA-PARTIDA-DOBLE; asientos guardados: 0,COMMIT aceptado; asientos guardados: 1,falla
+C01,Concurrencia,Requisito 3 (E7),Dos retiros simultáneos no dejan el saldo en negativo,saldo 2000.00; segunda operación: BNA-SALDO,saldo 0.00; segunda operación: aceptada,falla
+C02,Concurrencia,RN-TOP-001 (bug 5),Dos retiros simultáneos en cajero no superan juntos el tope diario,consumido 1000.00; segunda operación: RN-TOP-001,consumido 0.00; segunda operación: aceptada,falla
+C03,Concurrencia,RN-TOP-001 (bug 5),Dos autorizaciones simultáneas sin movimiento no superan juntas el tope diario,autorizadas 1; segunda operación: ERR-TAR-007,autorizadas 2; segunda operación: aceptada,falla

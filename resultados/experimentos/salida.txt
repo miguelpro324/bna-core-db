@@ -1,0 +1,60 @@
+Versiones:
+  MySQL 8.4.11
+  PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2)
+  PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2)
+
+== E1. DDL dentro de una transacción: CREATE TABLE y luego ROLLBACK
+   MySQL 8.4       la tabla sigue existiendo (commit implícito)
+   PG 16           la tabla se deshizo
+   PG 17           la tabla se deshizo
+
+== E2. Restricciones: FK diferible, índice único parcial y dominio
+   -- Clave foránea diferible
+   MySQL 8.4       You have an error in your SQL syntax; check the manual that corresponds to your MySQL serv
+   PG 16           aceptado
+   PG 17           aceptado
+   -- Índice único parcial
+   MySQL 8.4       You have an error in your SQL syntax; check the manual that corresponds to your MySQL serv
+   PG 16           aceptado
+   PG 17           aceptado
+   -- Dominio
+   MySQL 8.4       You have an error in your SQL syntax; check the manual that corresponds to your MySQL serv
+   PG 16           aceptado
+   PG 17           aceptado
+
+== E3. Verificación al confirmar: asiento descuadrado (solo debe) en partida doble
+   MySQL 8.4       CREATE CONSTRAINT TRIGGER: You have an error in your SQL syntax; check the manual that corresponds to your MyS
+   PG 16           asiento 2 descuadrado asientos guardados: 1
+   PG 17           asiento 2 descuadrado asientos guardados: 1
+
+== E4. Modo de sesión: SET sql_mode = '' e inserción de valores inválidos
+   MySQL 8.4       guardado sin error: e='', d=999.99, f=0000-00-00; advertencias: 3
+   PG 16           numeric field overflow date/time field value out of range: "2026-02-31" filas guardadas: 0
+   PG 17           numeric field overflow date/time field value out of range: "2026-02-31" filas guardadas: 0
+
+== E5. Tipos: marca de tiempo de 2039, BOOLEAN = 5 y UUID 'c2'
+   MySQL 8.4       TIMESTAMP: Incorrect datetime value: '2039-01-01 00:00:00' for column 't' at row 1
+   MySQL 8.4       BOOLEAN guarda 5
+   MySQL 8.4       CHAR(36) guarda 'c2'
+   PG 16           TIMESTAMPTZ guarda 2039-01-01 05:00:00+00
+   PG 16           BOOLEAN: column "x" is of type boolean but expression is of type integer
+   PG 16           UUID: invalid input syntax for type uuid: "c2"
+   PG 17           TIMESTAMPTZ guarda 2039-01-01 05:00:00+00
+   PG 17           BOOLEAN: column "x" is of type boolean but expression is of type integer
+   PG 17           UUID: invalid input syntax for type uuid: "c2"
+
+== E6. Auditoría: trigger AFTER DELETE en la tabla hija y borrado en cascada desde la madre
+   MySQL 8.4       hijos borrados: 1; filas en la bitácora: 0
+   PG 16           hijos borrados: 1; filas en la bitácora: 1
+   PG 17           hijos borrados: 1; filas en la bitácora: 1
+
+== E7. Actualización perdida: A lee el saldo (100), B resta 30 y confirma, A escribe 100 - 50
+   MySQL 8.4       REPEATABLE READ: A confirma; saldo final 50.00
+   MySQL 8.4       SERIALIZABLE: A confirma; saldo final 20.00
+   PG 16           READ COMMITTED: A confirma; saldo final 50.00
+   PG 16           REPEATABLE READ: could not serialize access due to concurrent update; saldo final 70.00
+   PG 16           SERIALIZABLE: could not serialize access due to concurrent update; saldo final 70.00
+   PG 17           READ COMMITTED: A confirma; saldo final 50.00
+   PG 17           REPEATABLE READ: could not serialize access due to concurrent update; saldo final 70.00
+   PG 17           SERIALIZABLE: could not serialize access due to concurrent update; saldo final 70.00
+   (correcto: 20, o un error que obligue a A a reintentar; 50 = se perdió la resta de B)

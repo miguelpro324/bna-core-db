@@ -1,0 +1,9 @@
+fecha: 2026-10-20T04:08:41Z
+commit: 68a9ac27b648 (limpio)
+docker: 29.9.1
+mysql: 8.4.11
+imagen_mysql: mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
+postgresql16: 16.15 (Debian 16.15-1.pgdg13+2)
+imagen16: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+postgresql17: 17.11 (Debian 17.11-1.pgdg13+2)
+imagen17: postgres:17@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
