@@ -88,8 +88,21 @@ TEX = {"\\": r"\textbackslash{}", "_": r"\_", "%": r"\%", "&": r"\&", "#": r"\#"
        '"': r"\textquotedbl{}"}
 
 
+def binario_legible(s):
+    """MySQL escribe una clave binaria duplicada como '\\xE0\\x00...@...'; si son
+    16 bytes, se muestra como UUID."""
+    def uuid(m):
+        partes = re.findall(r"\\x([0-9A-Fa-f]{2})|(.)", m.group(1), flags=re.S)
+        datos = bytes(int(h, 16) if h else ord(c) for h, c in partes)
+        if len(datos) != 16:
+            return m.group(0)
+        h = datos.hex()
+        return "'%s-%s-%s-%s-%s'" % (h[:8], h[8:12], h[12:16], h[16:20], h[20:])
+    return re.sub(r"'((?:\\x[0-9A-Fa-f]{2}|[^'\\])*\\x[0-9A-Fa-f]{2}(?:\\x[0-9A-Fa-f]{2}|[^'\\])*)'", uuid, s)
+
+
 def tex(s):
-    s = "".join(TEX.get(c, c) for c in s)
+    s = "".join(TEX.get(c, c) for c in binario_legible(s))
     return re.sub(r"(?<![\w\\/.])([\w/.]*\w(?:\\_\w+)+(?:\.\w+)?(?:\(\))?)",
                   lambda m: r"\nm{%s}" % m.group(1).replace(".", r".\allowbreak "), s)
 
