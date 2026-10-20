@@ -67,16 +67,20 @@ def version(v):
 
 # --- LaTeX -------------------------------------------------------------------
 TEX = {"\\": r"\textbackslash{}", "_": r"\_", "%": r"\%", "&": r"\&", "#": r"\#",
-       "$": r"\$", "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}", "^": r"\textasciicircum{}"}
+       "$": r"\$", "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}", "^": r"\textasciicircum{}",
+       # «"» es un atajo de babel en español y se come el espacio siguiente.
+       '"': r"\textquotedbl{}"}
 
 
 def tex(s):
     s = "".join(TEX.get(c, c) for c in s)
-    return re.sub(r"(?<![\w\\/.])([\w/.]*\w(?:\\_\w+)+(?:\.\w+)?(?:\(\))?)", r"\\nm{\1}", s)
+    return re.sub(r"(?<![\w\\/.])([\w/.]*\w(?:\\_\w+)+(?:\.\w+)?(?:\(\))?)",
+                  lambda m: r"\nm{%s}" % m.group(1).replace(".", r".\allowbreak "), s)
 
 
 def nm(s):
-    return r"\nm{%s}" % s.replace("_", r"\_")
+    """Ruta en mecanográfica, con cortes posibles tras «/» y «_»."""
+    return r"\nm{%s}" % s.replace("_", r"\_").replace("/", r"/\allowbreak ").replace(":", r"\allowbreak :")
 
 
 def cita(fuentes):
@@ -301,6 +305,11 @@ def obtenido_texto(f):
     return "; ".join("%s: %s" % kv for kv in f["obtenido"].items())
 
 
+def pg_resultado(r16, r17):
+    """Un solo valor si PostgreSQL 16 y 17 coinciden."""
+    return r16 if r16 == r17 else "%s/%s" % (r16, r17)
+
+
 def escribir(filas, refs):
     cols = ["id", "tipo", "afirmacion", "regla", "fuente", "script", "esperado", "obtenido",
             "pg16", "pg17", "mysql84"]
@@ -355,7 +364,7 @@ def escribir(filas, refs):
         script = nm(f["script"])
         lineas.append(r"%s & %s & %s & %s & %s & %s & %s \\" % (
             tex(f["id"]), afirm, "; ".join(fuente), script, eo,
-            "%s/%s" % (abrev[f["resultado"]["16"]], abrev[f["resultado"]["17"]]),
+            pg_resultado(abrev[f["resultado"]["16"]], abrev[f["resultado"]["17"]]),
             abrev[f["mysql_res"] or "—"]))
     with open(os.path.join(INF, "trazabilidad.tex"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(lineas) + "\n")
