@@ -65,7 +65,7 @@ CALL prueba.verifica('F15', 'Tarjetas', 'ev_marcar_tarjetas_vencidas (RN-TAR-003
        (SELECT IF(INTERVAL_VALUE = '1' AND INTERVAL_FIELD = 'DAY', 'diario ', 'no diario ') FROM information_schema.EVENTS
          WHERE EVENT_SCHEMA = 'tarjetas' AND EVENT_NAME = 'ev_marcar_tarjetas_vencidas'),
        (SELECT STATUS FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'tarjetas' AND EVENT_NAME = 'ev_marcar_tarjetas_vencidas'))",
-  'procedimiento');
+  'evento');
 
 CALL prueba.rechaza('F20', 'Cobranza', 'Aplicación de pagos', 'Una aplicación de pago no se modifica',
   JSON_ARRAY("CALL creditos.aplicar_pago(UUID_TO_BIN('f0000000-0000-4000-8000-000000000001'), @a)",

@@ -1,6 +1,0 @@
-fecha: 2026-10-20T04:08:53Z
-commit: 68a9ac27b648 (limpio)
-docker: 29.9.1
-linea_base: ab6a6ec (ab6a6ec0e6f1)
-mysql: 8.4.11
-imagen_mysql: mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
