@@ -123,7 +123,8 @@ linea E4 "Modo de sesión: SET sql_mode = '' e inserción de valores inválidos"
 echo "CREATE TABLE s (e ENUM('A','B'), d DECIMAL(5,2), f DATE);
 SET SESSION sql_mode = '';
 INSERT INTO s VALUES ('Z', 123456.789, '2026-02-31');
-SELECT CONCAT('guardado sin error: e=''', e, ''', d=', d, ', f=', f) FROM s;" | my | res "MySQL 8.4"
+SET @w = @@warning_count;
+SELECT CONCAT('guardado sin error: e=''', e, ''', d=', d, ', f=', f, '; advertencias: ', @w) FROM s;" | my | res "MySQL 8.4"
 for p in "${PGS[@]}"; do
   echo "CREATE TABLE s (d NUMERIC(5,2), f DATE);
 INSERT INTO s VALUES (123456.789, '2026-01-01');
