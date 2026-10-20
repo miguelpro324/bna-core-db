@@ -35,13 +35,44 @@ añadido aquí.
 | `pruebas/postgres/` | Arnés, datos de prueba, pruebas y el ejecutor para PostgreSQL 16 y 17. |
 | `experimentos/sgbd/` | Experimentos E1–E7 de la comparación entre MySQL 8.4 y PostgreSQL. |
 | `repro_mysql/` | Reproducción de las fallas de la línea base MySQL (`ab6a6ec`). |
+| `trazabilidad/` | Catálogo de fuentes (`catalogo.py`), fallas MySQL con su línea en `ab6a6ec` (`referencias_mysql.csv`) y el generador de la matriz (`matriz.py`). |
+| `resultados/` | Salidas en bruto de cada ejecución, con `metadatos.txt` (fecha, commit, versiones, imágenes), y la matriz de trazabilidad. |
 | `informe/` | Fragmentos LaTeX generados que el informe incluye desde el submódulo. |
+| `imagenes.env` | Imágenes de MySQL 8.4 y PostgreSQL 16 y 17, fijadas por digest. |
 
-Para regenerar el DDL y los fragmentos del modelo:
+## Ejecución
+
+Requisitos: Docker, Python 3.9 o superior y Git con la historia completa del
+repositorio. Un solo comando vuelve a ejecutar todo:
 
 ```bash
-cd modelo && python3 modelo_bna.py ../informe
+./run_all.sh
 ```
+
+1. Regenera `sql/bna_core.sql` y los fragmentos del modelo en `informe/`.
+2. Ejecuta los experimentos E1–E7 en MySQL 8.4 y PostgreSQL 16 y 17
+   (`resultados/experimentos/`).
+3. Reproduce las fallas de la línea base MySQL (`resultados/repro_mysql/`).
+4. Ejecuta las pruebas en PostgreSQL 16 y 17 (`resultados/postgres/`,
+   `informe/pruebas-*.tex`).
+5. Ejecuta las mismas pruebas sobre el DDL sin triggers del commit `8aec444`,
+   como control (`resultados/control/`).
+6. Genera la matriz de trazabilidad (`resultados/trazabilidad.md` y `.csv`),
+   las fallas MySQL verificadas (`resultados/referencias_mysql.md`) y los
+   fragmentos del informe que dependen de ellas.
+
+Conviene ejecutarlo con el árbol limpio y confirmar después solo `resultados/`
+e `informe/`: así `metadatos.txt` registra el commit exacto que se ejecutó.
+
+## Cómo leer la matriz
+
+Cada fila une una afirmación o regla con su fuente (documento del módulo y
+página del PDF, documentación oficial, línea del código MySQL en `ab6a6ec` o
+decisión del informe), el script que la prueba, el resultado esperado y el
+obtenido en cada gestor. Las reglas que ninguna fuente enuncia aparecen como
+«Decisión del informe»; los códigos `BNA-*` son mensajes de error definidos
+por este proyecto, mientras que `RN-*`, `RF-*`, `INT-*` y `ERR-TAR-*` son los
+de los documentos de los módulos.
 
 ## Limitaciones conocidas
 
