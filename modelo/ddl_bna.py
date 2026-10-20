@@ -248,7 +248,11 @@ CHECKS = {
         "(coord_fila IS NULL) = (coord_columna IS NULL)",
         "(coord_fila IS NOT NULL) = (tipo_credencial = 'TOKEN_MATRIZ')",
         "num_nonnulls(id_terminal, id_canal) = 1"],
-    "AUTORIZACION": ["monto >= 0", "num_nonnulls(id_terminal, id_canal) = 1"],
+    # DECISIÓN: la autorización y su movimiento comparten el identificador de
+    #   la operación (Tarjetas, RN-BUS-002); así el movimiento sabe que el tope
+    #   y el saldo ya se comprometieron al autorizar.
+    "AUTORIZACION": ["monto >= 0", "num_nonnulls(id_terminal, id_canal) = 1",
+                     "uuid_transaccion IS NULL OR uuid_transaccion = uuid_autorizacion"],
     "SOLICITUD_CREDITO": ["monto_solicitado > 0", "plazo_meses > 0"],
     "GARANTIA": ["valor_referencial > 0"],
     "CALENDARIO_PAGO": ["tasa_aplicada >= 0"],
@@ -297,16 +301,30 @@ EXTRA_FK = [
 ]
 
 # Rules that need data of other tables: implemented with triggers (listed).
-TRIGGER_RULES = [
-    "CREDITO: el calendario debe pertenecer a la solicitud de la evaluación de su orden.",
-    "ORDEN_DESEMBOLSO: una sola orden CONFIRMADA por solicitud (en todas sus rondas).",
-    "ORDEN_DESEMBOLSO: la cuenta destino pertenece al cliente de la solicitud y tiene su moneda.",
-    "APLICACION_PAGO: la cuota pertenece al calendario del crédito del pago.",
-    "AUTORIZACION: el importe no supera el tope del canal ni el saldo (RN-TOP-001).",
-    "CUENTA_AHORRO: los saldos se actualizan en la misma transacción que el movimiento.",
-    "TARJETA: estado_tarjeta se actualiza al insertar en HISTORIAL_ESTADO_TARJETA.",
-    "HISTORIAL_*, INTENTO_AUTENTICACION, EVENTO_AUDITORIA: solo inserción (sin UPDATE/DELETE).",
+# Query indexes for the ported views and the documented queries.  An FK
+# index whose columns are a prefix of one of these is not created twice.
+QUERY_INDEXES = [
+    ("ix_movimiento_cuenta_fecha", "MOVIMIENTO", ("num_cuenta", "fecha_hora"), None,
+     "estado de cuenta: movimientos de una cuenta por fecha"),
+    ("ix_autorizacion_tarjeta_fecha", "AUTORIZACION", ("id_tarjeta", "fecha_hora"), None,
+     "consumo diario por tarjeta (v_consumo_diario, Tarjetas)"),
+    ("ix_intento_tarjeta_fecha", "INTENTO_AUTENTICACION", ("id_tarjeta", "fecha_hora"), None,
+     "intentos de una tarjeta por fecha (Tarjetas, C08)"),
+    ("ix_historial_tarjeta_fecha", "HISTORIAL_ESTADO_TARJETA", ("id_tarjeta", "fecha_hora"), None,
+     "historial de una tarjeta (Tarjetas, C10)"),
+    ("ix_orden_estado_fecha", "ORDEN_DESEMBOLSO", ("estado_orden", "actualizado_en"), None,
+     "recuperación de órdenes inciertas por estado y fecha (Desembolso, idx_orden_estado)"),
+    ("ix_evento_salida_pendiente", "EVENTO_SALIDA", ("fecha_registro",), "estado_envio = 'PENDIENTE'",
+     "bandeja de salida hacia SEGURIDAD: solo los eventos por enviar"),
+    ("ix_evento_entrega_pendiente", "EVENTO_ENTREGA", ("siguiente_intento",),
+     "estado_entrega IN ('PENDIENTE', 'ENVIADO', 'FALLIDO')",
+     "búsqueda de entregas pendientes hacia Cobranza (Desembolso)"),
+    ("ix_evento_auditoria_correlacion", "EVENTO_AUDITORIA", ("correlation_id",), None,
+     "reconstrucción de una operación completa desde la traza (Desembolso, idx_auditoria_correlation)"),
 ]
+
+# Triggers, functions and views: hand-written PL/pgSQL inlined in the DDL.
+PROGRAMMING = os.path.join(os.path.dirname(os.path.abspath(__file__)), "programacion_bna.sql")
 
 
 def uniques(rel):
@@ -488,10 +506,12 @@ def gen(path):
     w = L.append
     w("-- =====================================================================")
     w("-- Banco Nacional de Arequipa (BNA) - base de datos integrada del CORE")
-    w("-- PostgreSQL 13 o superior. Generado por tools/modelo_bna.py desde el")
+    w("-- PostgreSQL 16 o superior. Generado por modelo/modelo_bna.py desde el")
     w("-- esquema relacional normalizado (3FN) y con tablas de catálogo.")
     w("-- =====================================================================")
-    w("-- DECISIÓN: PostgreSQL, motor propuesto en la arquitectura del CORE.")
+    w("-- DECISIÓN: PostgreSQL, elegido frente a MySQL en el informe (sección")
+    w("--   «Selección del sistema gestor de base de datos»); versión 16 o")
+    w("--   superior, la usada en la validación.")
     w("-- DECISIÓN: una base con esquemas lógicos por dueño del dato; los")
     w("--   identificadores se escriben en minúsculas y sin comillas.")
     w("-- DECISIÓN: las claves foráneas se agregan al final con ALTER TABLE para")
@@ -545,7 +565,10 @@ def gen(path):
             w("ALTER TABLE %s ADD CONSTRAINT fk_%s_%d FOREIGN KEY (%s)\n    REFERENCES %s (%s);"
               % (q(rel), rel.lower(), i, ", ".join(cols), q(tgt), ", ".join(pk(tgt))))
             pkc = pk(rel)
-            covered = tuple(pkc[:len(cols)]) == cols or any(tuple(u[:len(cols)]) == cols for u in uniques(rel))
+            covered = (tuple(pkc[:len(cols)]) == cols
+                       or any(tuple(u[:len(cols)]) == cols for u in uniques(rel))
+                       or any(r == rel and where is None and tuple(c[:len(cols)]) == cols
+                              for _, r, c, where, _ in QUERY_INDEXES))
             if not covered:
                 idx.append((rel, cols))
     for rel, cols, tgt, why in EXTRA_FK:
@@ -563,12 +586,14 @@ def gen(path):
     for name, rel, cols, where, why in PARTIAL:
         w("-- DECISIÓN: %s." % why)
         w("CREATE UNIQUE INDEX %s ON %s (%s) WHERE %s;" % (name, q(rel), cols, where))
+    w("-- DECISIÓN: índices de consulta para las vistas y las consultas documentadas.")
+    for name, rel, cols, where, why in QUERY_INDEXES:
+        w("-- %s%s." % (why[0].upper(), why[1:]))
+        w("CREATE INDEX %s ON %s (%s)%s;" % (name, q(rel), ", ".join(cols),
+                                             " WHERE %s" % where if where else ""))
     w("")
-    w("-- %s" % ("=" * 69))
-    w("-- Reglas que requieren datos de otras tablas (se implementan con triggers)")
-    w("-- %s" % ("=" * 69))
-    for t in TRIGGER_RULES:
-        w("--   * " + t)
+    with open(PROGRAMMING, encoding="utf-8") as f:
+        w(f.read().rstrip("\n"))
     w("")
     w("-- %s" % ("=" * 69))
     w("-- Datos iniciales: parámetros documentados por las fuentes")

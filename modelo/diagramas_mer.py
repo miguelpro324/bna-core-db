@@ -357,7 +357,7 @@ def gen(out):
             r"  \caption{Modelo entidad--relación: %s}\label{fig:mer-%s}" % (d["caption"], d["key"]),
             r"  {\centering",
             r"  \adjustbox{max width=\linewidth, max totalheight=0.78\textheight}{%",
-            r"    \input{content/model/mer-diagrama-%s.tex}}\par}" % d["key"],
+            r"    \input{\ModelDir/mer-diagrama-%s.tex}}\par}" % d["key"],
             r"  \figurenote{%s}" % note,
             r"\end{figure}", ""]))
     with open(os.path.join(out, "mer-figuras.tex"), "w", encoding="utf-8") as f:

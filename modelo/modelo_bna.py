@@ -1,5 +1,5 @@
 # Regenerate the LaTeX fragments of the data model after editing it:
-#   python tools/modelo_bna.py content/model
+#   cd modelo && python3 modelo_bna.py ../informe
 
 # -*- coding: utf-8 -*-
 """Integrated BNA data model: single source for the LaTeX fragments.
@@ -1227,7 +1227,10 @@ if __name__ == "__main__":
     txt = open(sql, encoding="utf-8").read()
     extra = dict(n3=len(STAGES["n3"]), tablas=txt.count("CREATE TABLE "),
                  fks=txt.count("FOREIGN KEY"), indices=txt.count("CREATE INDEX ") + txt.count("CREATE UNIQUE INDEX "),
-                 parciales=txt.count("CREATE UNIQUE INDEX "), semillas=txt.count("INSERT INTO "),
+                 parciales=txt.count("CREATE UNIQUE INDEX "), semillas=txt.count("\nINSERT INTO "),
+                 consultas=len(ddl_bna.QUERY_INDEXES),
+                 triggers=txt.count("CREATE TRIGGER ") + txt.count("CREATE CONSTRAINT TRIGGER "),
+                 funciones=txt.count("CREATE FUNCTION "), vistas=txt.count("CREATE VIEW "),
                  lineassql=txt.count("\n"))
     with open(os.path.join(sys.argv[1], "stats.tex"), "a", encoding="utf-8") as f:
         f.write("\n".join(r"\expandafter\def\csname stat:%s\endcsname{%d}" % kv for kv in extra.items()) + "\n")
