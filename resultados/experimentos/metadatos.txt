@@ -1,6 +1,6 @@
-fecha: 2026-10-20T22:38:53Z
-commit: 321acf30cab9 (limpio)
-docker: 29.9.1
+fecha: 2026-10-31T16:34:28Z
+commit: bc803a218f07 (limpio)
+docker: 29.9.2
 mysql: 8.4.11
 imagen_mysql: mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
 postgresql16: 16.15 (Debian 16.15-1.pgdg13+2)

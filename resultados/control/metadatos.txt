@@ -1,6 +1,6 @@
-fecha: 2026-10-20T22:39:50Z
-commit: 321acf30cab9 (limpio)
-docker: 29.9.1
+fecha: 2026-10-31T16:35:17Z
+commit: bc803a218f07 (limpio)
+docker: 29.9.2
 ddl: sql/bna_core.sql en 8aec4445c150 (sin triggers)
 postgresql16: 16.15
 imagen16: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d

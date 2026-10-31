@@ -29,6 +29,7 @@ F12k & Operación única (RN-BUS-002) & Una autorización solo se vincula al mov
 F12l & Tope diario (RN-TOP-001) & Una autorización de ayer contabilizada hoy cuenta para el tope de ayer, no para el de hoy & Pasa \\
 F12m & Extorno (Tarjetas, C07) & El extorno hoy del movimiento de una autorización de ayer libera el tope de ayer, no el de hoy & Pasa \\
 F12n & \nm{trg\_autorizacion\_bu} (C07) & El extorno hoy de una autorización de ayer sin movimiento libera el tope de ayer y el saldo & Pasa \\
+F12o & \nm{sp\_validar\_reglas\_autorizacion} (fila ausente) & No se autoriza por un canal y moneda sin fila en \nm{limite\_canal} & Pasa \\
 F13 & \nm{trg\_autorizacion\_bd} (RN-ATM-003) & Una autorización no se borra; se extorna & Pasa \\
 F14a & \nm{trg\_cliente\_ref\_au} (INT-T07) & Si Clientes bloquea al cliente, se bloquean sus tarjetas & Pasa \\
 F14b & \nm{trg\_cliente\_ref\_au} (INT-T07) & Si Clientes da de baja al cliente, se cancelan sus tarjetas & Pasa \\
@@ -53,6 +54,10 @@ F28 & \nm{des\_v\_ordenes\_inciertas} & La vista lista las órdenes con resultad
 F29 & \nm{des\_v\_entregas\_pendientes} & La vista lista las entregas que superan dos reintentos & Pasa \\
 F30 & \nm{des\_v\_conciliacion\_diaria} & La vista cuadra lo ordenado con lo abonado por fecha y moneda & Pasa \\
 F31 & Consultas de Tarjetas y Desembolso & Existen los índices de consulta y ninguno repite a otro de clave foránea & Pasa \\
+F32a & \nm{trg\_movimiento\_validar} (fila ausente) & Un débito por AGE, sin fila en \nm{limite\_canal}, se rechaza & Pasa \\
+F32b & \nm{trg\_movimiento\_validar} (fila ausente) & Un débito en USD por HB, sin fila en \nm{limite\_canal}, se rechaza & Pasa \\
+F32c & \nm{trg\_movimiento\_validar} (RN-BD-002) & Un débito en USD por BD, con la fila deshabilitada, se rechaza & Pasa \\
+F32d & \nm{trg\_movimiento\_validar} (Tarjetas, tabla 4) & Ventanilla opera sin tope automático: su fila tiene monto nulo & Pasa \\
 R1 & Pruebas negativas del DDL & Evento de auditoría sobre un registro no registrado como auditable & Pasa \\
 R2 & Pruebas negativas del DDL & Intento con coordenada para una credencial que no es la matriz & Pasa \\
 R3 & Pruebas negativas del DDL & Intento con terminal y canal a la vez & Pasa \\

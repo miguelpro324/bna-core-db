@@ -52,6 +52,11 @@ F12a,Tarjetas,trg_autorizacion_bi (RN-TAR-003),No se autoriza con una tarjeta bl
 F12b,Tarjetas,trg_autorizacion_bi (RN-TAR-003),No se autoriza con una tarjeta vencida,Rechazo: ERR-TAR-003.*venció,Aceptada sin error,falla
 F12c,Tarjetas,trg_autorizacion_bi (RN-ATM-005),El cajero no opera una cuenta mancomunada conjunta,Rechazo: ERR-TAR-008,Aceptada sin error,falla
 F12d,Tarjetas,trg_autorizacion_bi (RN-BD-002),La Billetera Digital no opera en dólares,Rechazo: ERR-TAR-006,Aceptada sin error,falla
+F12o,Tarjetas,sp_validar_reglas_autorizacion (fila ausente),No se autoriza por un canal y moneda sin fila en limite_canal,Rechazo: ERR-TAR-006: el canal HB no opera en USD$,Aceptada sin error,falla
+F32a,Cuentas,trg_movimiento_validar (fila ausente),"Un débito por AGE, sin fila en limite_canal, se rechaza",Rechazo: BNA-CANAL: el canal AGE,Aceptada sin error,falla
+F32b,Cuentas,trg_movimiento_validar (fila ausente),"Un débito en USD por HB, sin fila en limite_canal, se rechaza",Rechazo: BNA-CANAL: el canal HB,Aceptada sin error,falla
+F32c,Cuentas,trg_movimiento_validar (RN-BD-002),"Un débito en USD por BD, con la fila deshabilitada, se rechaza",Rechazo: RN-BD-002: el canal BD,Aceptada sin error,falla
+F32d,Cuentas,"trg_movimiento_validar (Tarjetas, tabla 4)",Ventanilla opera sin tope automático: su fila tiene monto nulo,aceptado,aceptado,pasa
 F12e,Tarjetas,trg_autorizacion_bi,No se autoriza en una terminal inactiva,Rechazo: ERR-TAR-006.*terminal,Aceptada sin error,falla
 F12f,Tarjetas,sp_validar_reglas_autorizacion,No se autoriza más que el saldo disponible,Rechazo: BNA-SALDO,Aceptada sin error,falla
 F12g,Tarjetas,trg_autorizacion_bu (RN-ATM-007),Una autorización rechazada no pasa a autorizada,Rechazo: RN-ATM-007,Aceptada sin error,falla
