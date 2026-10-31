@@ -307,6 +307,22 @@ SELECT prueba.rechaza('F12d', 'Tarjetas', 'trg_autorizacion_bi (RN-BD-002)', 'La
   $q$INSERT INTO tarjetas.autorizacion (tipo_operacion, monto, estado_autorizacion, id_canal, id_tarjeta, num_cuenta)
      VALUES ('FONDEO_BILLETERA', 100, 'AUTORIZADA', 'BD', 'a0000000-0000-4000-8000-000000000001', 'CTA-USD-1')$q$,
   'ERR-TAR-006');
+SELECT prueba.rechaza('F12o', 'Tarjetas', 'sp_validar_reglas_autorizacion (fila ausente)', 'No se autoriza por un canal y moneda sin fila en limite_canal',
+  $q$INSERT INTO tarjetas.autorizacion (tipo_operacion, monto, estado_autorizacion, id_canal, id_tarjeta, num_cuenta)
+     VALUES ('RETIRO', 10, 'AUTORIZADA', 'HB', 'a0000000-0000-4000-8000-000000000001', 'CTA-USD-1')$q$,
+  'ERR-TAR-006: el canal HB no opera en USD$');
+SELECT prueba.rechaza('F32a', 'Cuentas', 'trg_movimiento_validar (fila ausente)', 'Un débito por AGE, sin fila en limite_canal, se rechaza',
+  $q$SELECT prueba.movimiento('CTA-PEN-1', 'RETIRO', 1, 'AGE')$q$,
+  'BNA-CANAL: el canal AGE');
+SELECT prueba.rechaza('F32b', 'Cuentas', 'trg_movimiento_validar (fila ausente)', 'Un débito en USD por HB, sin fila en limite_canal, se rechaza',
+  $q$SELECT prueba.movimiento('CTA-USD-1', 'RETIRO', 1, 'HB')$q$,
+  'BNA-CANAL: el canal HB');
+SELECT prueba.rechaza('F32c', 'Cuentas', 'trg_movimiento_validar (RN-BD-002)', 'Un débito en USD por BD, con la fila deshabilitada, se rechaza',
+  $q$SELECT prueba.movimiento('CTA-USD-1', 'RETIRO', 1, 'BD')$q$,
+  'RN-BD-002: el canal BD');
+SELECT prueba.verifica('F32d', 'Cuentas', 'trg_movimiento_validar (Tarjetas, tabla 4)', 'Ventanilla opera sin tope automático: su fila tiene monto nulo',
+  $q$SELECT prueba.movimiento('CTA-USD-1', 'RETIRO', 1, 'VEN')$q$,
+  $q$SELECT TRUE$q$, 'aceptado', $q$SELECT 'aceptado'$q$);
 SELECT prueba.rechaza('F12e', 'Tarjetas', 'trg_autorizacion_bi', 'No se autoriza en una terminal inactiva',
   $q$INSERT INTO tarjetas.autorizacion (tipo_operacion, monto, estado_autorizacion, id_terminal, id_tarjeta, num_cuenta)
      VALUES ('RETIRO', 100, 'AUTORIZADA', 'ATM-AQP-OFF', 'a0000000-0000-4000-8000-000000000001', 'CTA-PEN-1')$q$,

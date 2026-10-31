@@ -98,7 +98,8 @@ CREATE CONSTRAINT TRIGGER tg_detalle_asiento_cuadra AFTER INSERT ON core.detalle
 --   * La cuenta admite débitos o créditos según su estado (ESTADO_CUENTA).
 --   * El asiento del movimiento está en la moneda de la cuenta.
 --   * Un débito no supera el saldo disponible ni el tope diario del canal
---     (RN-TOP-001; RN-BD-002 cuando el canal no opera en esa moneda).
+--     (RN-TOP-001; BNA-CANAL sin fila para esa moneda, RN-BD-002 con la fila
+--     deshabilitada).
 --   * Los saldos y el consumo del día se actualizan en la misma transacción.
 -- DECISIÓN: el tope y el saldo se comprometen una sola vez por operación.
 --   Un débito con autorización de Tarjetas los compromete al autorizarse:
@@ -111,9 +112,9 @@ CREATE CONSTRAINT TRIGGER tg_detalle_asiento_cuadra AFTER INSERT ON core.detalle
 --   la fila de su cuenta (FOR UPDATE), de modo que dos operaciones
 --   simultáneas sobre la misma cuenta se serializan: la segunda espera y,
 --   al continuar, lee lo que confirmó la primera.
--- DECISIÓN: si no hay fila en LIMITE_CANAL para el canal y la moneda, el
---   canal no tiene tope documentado; si la hay con habilitado = FALSE, el
---   canal no opera en esa moneda.
+-- DECISIÓN: sin fila en LIMITE_CANAL para el canal y la moneda, o con
+--   habilitado = FALSE, el canal no opera en esa moneda; una fila con
+--   monto nulo es un canal sin tope automático.
 -- DECISIÓN: el movimiento es inmutable salvo el paso de APROBADO a
 --   EXTORNADO; el extorno devuelve el consumo del día y el saldo se repone
 --   con un movimiento EXTORNO.
@@ -177,10 +178,13 @@ BEGIN
         IF NEW.id_canal IS NOT NULL THEN
             SELECT * INTO v_limite FROM core.limite_canal
              WHERE id_canal = NEW.id_canal AND moneda = v_cuenta.moneda;
-            IF FOUND AND NOT v_limite.habilitado THEN
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'BNA-CANAL: el canal % no opera en %', NEW.id_canal, v_cuenta.moneda;
+            END IF;
+            IF NOT v_limite.habilitado THEN
                 RAISE EXCEPTION 'RN-BD-002: el canal % no opera en %', NEW.id_canal, v_cuenta.moneda;
             END IF;
-            IF FOUND AND v_limite.monto_maximo_diario IS NOT NULL THEN
+            IF v_limite.monto_maximo_diario IS NOT NULL THEN
                 SELECT coalesce(max(monto_acumulado), 0) INTO v_consumo FROM core.consumo_diario
                  WHERE num_cuenta = NEW.num_cuenta AND id_canal = NEW.id_canal
                    AND fecha_corte = core.fn_fecha_negocio(NEW.fecha_hora);
@@ -498,10 +502,13 @@ BEGIN
             RAISE EXCEPTION 'BNA-ESTADO-CUENTA: la cuenta % (estado %) no admite débitos', p_num_cuenta, v_cuenta.estado_cuenta;
         END IF;
         SELECT * INTO v_limite FROM core.limite_canal WHERE id_canal = v_canal AND moneda = v_cuenta.moneda;
-        IF FOUND AND NOT v_limite.habilitado THEN
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'ERR-TAR-006: el canal % no opera en %', v_canal, v_cuenta.moneda;
+        END IF;
+        IF NOT v_limite.habilitado THEN
             RAISE EXCEPTION 'ERR-TAR-006: el canal % no opera en % (RN-BD-002)', v_canal, v_cuenta.moneda;
         END IF;
-        IF FOUND AND v_limite.monto_maximo_diario IS NOT NULL THEN
+        IF v_limite.monto_maximo_diario IS NOT NULL THEN
             SELECT coalesce(max(monto_acumulado), 0) INTO v_consumo FROM core.consumo_diario
              WHERE num_cuenta = p_num_cuenta AND id_canal = v_canal
                AND fecha_corte = core.fn_fecha_negocio(p_momento);
