@@ -59,3 +59,12 @@ X81	bna_app_user	cambiar_estado_tarjeta no cambia el estado si falla el evento (
 X82	bna_app_user	Una operación válida se confirma sola y deja su evento (C1)	pasa
 X83	bna_app_user	Dentro de una transacción, un fallo solo deshace su operación (C1)	pasa
 X84	bna_app_user	Un bloqueo concurrente se aplica y avisa a SEGURIDAD (I1)	pasa
+X85	bna_app_user	cambiar_estado_tarjeta no desbloquea con origen OPERADOR (I2)	pasa
+X86	bna_app_user	cambiar_estado_tarjeta no desbloquea con origen SEGURIDAD (I2)	pasa
+X87	bna_app_user	cambiar_estado_tarjeta no reactiva una tarjeta RETENIDA (I2)	pasa
+X88	bna_app_user	bna_app no ejecuta desbloquear_tarjeta (I2)	pasa
+X89	bna_app_user	Sin actor no se desbloquea: la operación es atómica (I2)	pasa
+X90	bna_app_user	bna_seguridad desbloquea, con historial, aviso y auditoría (I2)	pasa
+X91	bna_app_user	bna_seguridad también libera una tarjeta RETENIDA (I2)	pasa
+X92	bna_app_user	desbloquear_tarjeta no activa una tarjeta que no está bloqueada (I2)	pasa
+X93	bna_app_user	bna_seguridad no ejecuta los otros procedimientos (I2)	pasa

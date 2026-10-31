@@ -1,7 +1,7 @@
-fecha: 2026-10-31T05:26:08Z
-commit: ca313eb3fa5e (limpio)
+fecha: 2026-10-31T05:49:09Z
+commit: b76e1dfbc5ac (limpio)
 docker: 29.9.2
-ddl: sql/bna_core.sql en ca313eb3fa5e (limpio)
+ddl: sql/bna_core.sql en b76e1dfbc5ac (limpio)
 mysql: 8.4.11
 imagen: mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
 sql_mode: ONLY_FULL_GROUP_BY,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
