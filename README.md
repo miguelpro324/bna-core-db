@@ -93,13 +93,26 @@ configuración de `conf/mysql/bna.cnf` y las tablas de zonas horarias
 `conf/mysql/crear_usuarios.sh` crea `bna_app_user` y `bna_admin_user` al
 inicializar un volumen vacío, con las contraseñas de `CORE_DB_APP_PASSWORD` y
 `CORE_DB_ADMIN_PASSWORD`. No hay contraseñas en el repositorio. El contenedor se
-arranca con `sql/bna_core.sql` y ese script en `/docker-entrypoint-initdb.d/`, en ese
-orden, y con `bna.cnf` copiado a `/etc/mysql/conf.d/` con permisos 644, porque
+arranca con `sql/bna_core.sql`, `sql/bna_extension.sql` y ese script en
+`/docker-entrypoint-initdb.d/`, en ese orden, y con `bna.cnf` copiado a `/etc/mysql/conf.d/` con permisos 644, porque
 MySQL ignora un archivo de configuración escribible por todos.
 
 `pruebas/mysql/prueba_despliegue.sh` comprueba ese arranque.
 
 Las versiones publicadas son etiquetas inmutables `bd-vX.Y-mysql`.
+
+## Extensiones de integración
+
+`sql/bna_extension.sql` agrega lo que necesita la API de integración: usuarios y
+empleados, productos, tipos de cambio, periodos contables, idempotencia de
+movimientos, auditoría general, equivalencias de catálogo y los procedimientos de
+escritura. Está escrito a mano y se carga después de `sql/bna_core.sql`. **Queda
+fuera del modelo normalizado:** no está en `modelo_bna.py`, ni en el MER, ni en la
+rama `main`, y es una divergencia de esta rama.
+
+`pruebas/mysql/run_extension.sh` carga las dos cosas y ejecuta las pruebas SQL de la
+base y las de la extensión (ID `X`). No escribe en `resultados/`, porque la extensión
+no entra en la matriz.
 
 ## Brechas conocidas
 

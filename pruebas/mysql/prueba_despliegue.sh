@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Comprueba el despliegue con los mismos montajes que usa
-# docker-compose.coredb.yml: arranca el contenedor con bna.cnf, el DDL y
-# crear_usuarios.sh, y revisa la configuración y los usuarios. bna.cnf se monta
+# docker-compose.coredb.yml: arranca el contenedor con bna.cnf, el DDL, la
+# extensión y crear_usuarios.sh, y revisa la configuración y los usuarios. bna.cnf se monta
 # con permisos 666, como puede verse un montaje desde Windows: MySQL ignora un
 # archivo de configuración escribible por todos, y el arranque debe evitarlo.
 #
@@ -30,7 +30,8 @@ docker run -d --name "$C" \
   -e CORE_DB_ADMIN_PASSWORD="$PW_ADMIN" \
   -v "$TMP/bna.cnf:/bna/bna.cnf:ro" \
   -v "$ROOT/sql/bna_core.sql:/docker-entrypoint-initdb.d/01_bna_core.sql:ro" \
-  -v "$ROOT/conf/mysql/crear_usuarios.sh:/docker-entrypoint-initdb.d/02_crear_usuarios.sh:ro" \
+  -v "$ROOT/sql/bna_extension.sql:/docker-entrypoint-initdb.d/02_bna_extension.sql:ro" \
+  -v "$ROOT/conf/mysql/crear_usuarios.sh:/docker-entrypoint-initdb.d/03_crear_usuarios.sh:ro" \
   --entrypoint sh "$MYSQL_IMAGE" \
   -c 'install -m 644 /bna/bna.cnf /etc/mysql/conf.d/bna.cnf && exec docker-entrypoint.sh mysqld' >/dev/null
 
@@ -54,6 +55,8 @@ comprobar() { # DESCRIPCION ESPERADO OBTENIDO
 comprobar 'configuración del servidor' 'BNA-CONFIGURACION: correcta' \
   "$(app -e 'CALL core.verificar_configuracion()' 2>&1 || true)"
 comprobar 'rol de bna_app_user' 'bna_app' "$(app -e 'SELECT CURRENT_ROLE()' 2>&1 || true)"
+comprobar 'extensión cargada' '^1$' \
+  "$(app -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'core' AND table_name = 'usuario_sistema'" 2>&1 || true)"
 comprobar 'bna_app_user no borra' 'denied' \
   "$(app -e 'DELETE FROM core.agencia' 2>&1 || true)"
 comprobar 'bna_admin_user con su rol' 'bna_admin' \

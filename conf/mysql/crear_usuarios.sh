@@ -1,6 +1,6 @@
 #!/bin/sh
 # Crea los usuarios de la aplicación y de administración al inicializar el
-# contenedor (/docker-entrypoint-initdb.d, después de sql/bna_core.sql). Las
+# contenedor (/docker-entrypoint-initdb.d, después de los SQL). Las
 # contraseñas vienen del entorno: ninguna se guarda en el repositorio. No usa
 # `set -e` porque el contenedor puede cargar este archivo con `source`.
 : "${CORE_DB_APP_PASSWORD:?Falta CORE_DB_APP_PASSWORD}"
