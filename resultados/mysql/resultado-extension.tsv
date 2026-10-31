@@ -13,14 +13,49 @@ X12	bna_app_user	El retiro sin saldo sigue rechazándose por el trigger	pasa
 X13	bna_app_user	La transferencia mueve el saldo con un asiento por tramo	pasa
 X14	bna_app_user	No se transfiere entre monedas distintas	pasa
 X15	bna_app_user	No se transfiere a la misma cuenta	pasa
-X16	bna_app_user	El evento general se registra por el procedimiento	pasa
+X16	bna_app_user	El movimiento deja su evento en la misma operación	pasa
 X17	bna_app_user	bna_app no modifica la bitácora	pasa
 X18	bna_app_user	Una mancomunada exige sus titulares	pasa
 X19	bna_app_user	La cuenta se abre con su titular	pasa
 X20	bna_app_user	La tarjeta se emite y cambia de estado por el historial	pasa
 X21	bna_app_user	Un valor de la API con equivalente exacto se traduce	pasa
+X40	bna_app_user	Un movimiento sin canal se rechaza (C2)	pasa
+X41	bna_app_user	Una transferencia sin canal se rechaza (C2)	pasa
+X42	bna_app_user	El tope diario se aplica a la transferencia (C2)	pasa
+X43	bna_app_user	Un débito por ATM exige autorización de tarjeta (I7)	pasa
+X44	bna_app_user	La tarjeta exige que el cliente sea titular de la cuenta (I3)	pasa
+X46	bna_app_user	Una cuenta individual tiene un solo titular (I4)	pasa
+X47	bna_app_user	El titular debe poder operar (I4)	pasa
+X48	bna_app_user	Los titulares son una lista JSON (I4)	pasa
+X49	bna_app_user	Los titulares no se repiten (I4)	pasa
+X50	bna_app_user	registrar_movimiento solo admite depósito y retiro (I6)	pasa
+X51	bna_app_user	Una transferencia de un solo tramo se rechaza (I6)	pasa
+X52	bna_app_user	crear_usuario deja su evento (I11)	pasa
+X53	bna_app_user	asignar_rol deja el rol anterior y el nuevo (I11, M11)	pasa
+X54	bna_app_user	bna_app no fabrica eventos de auditoría (I11)	pasa
+X55	bna_app_user	Una cuenta nula da un error de regla (M9)	pasa
+X57	bna_app_user	Repetir una transferencia devuelve la misma operación (I13)	pasa
+X58	bna_app_user	Una llave de depósito no sirve para una transferencia (I13)	pasa
+X59	bna_app_user	La fecha de negocio se corta a medianoche de Arequipa (I13)	pasa
 X30	bna_admin_user	El empleado exige una agencia existente	pasa
 X31	bna_admin_user	La tasa debe ser positiva	pasa
 X32	bna_admin_user	El plazo mínimo no supera al máximo	pasa
 X33	bna_admin_user	La bitácora rechaza UPDATE aun con privilegios	pasa
 X34	bna_admin_user	La bitácora rechaza DELETE aun con privilegios	pasa
+X35	bna_admin_user	El identificador del empleado debe ser un UUID válido (M6)	pasa
+X45	bna_admin_user	No se emite tarjeta sobre una cuenta cancelada (I3)	pasa
+X70	bna_app_user	Una transferencia a una cuenta bloqueada no deja nada (C1)	pasa
+X71	bna_app_user	Repetir la llave tras un fallo no informa éxito (C1)	pasa
+X72	bna_app_user	Un retiro sin saldo no deja asiento ni llave (C1)	pasa
+X73	bna_app_user	Un titular inexistente no deja la cuenta (C1)	pasa
+X74	bna_app_user	crear_usuario no deja la fila si falla el evento (C1)	pasa
+X75	bna_app_user	asignar_rol no cambia el rol si falla el evento (C1)	pasa
+X76	bna_app_user	migrar_hash_usuario no cambia el hash si falla el evento (C1)	pasa
+X77	bna_app_user	registrar_movimiento no deja saldo, asiento ni llave si falla el evento (C1)	pasa
+X78	bna_app_user	registrar_transferencia no mueve saldos si falla el evento (C1)	pasa
+X79	bna_app_user	abrir_cuenta no deja la cuenta si falla el evento (C1)	pasa
+X80	bna_app_user	emitir_tarjeta no deja la tarjeta si falla el evento (C1)	pasa
+X81	bna_app_user	cambiar_estado_tarjeta no cambia el estado si falla el evento (C1)	pasa
+X82	bna_app_user	Una operación válida se confirma sola y deja su evento (C1)	pasa
+X83	bna_app_user	Dentro de una transacción, un fallo solo deshace su operación (C1)	pasa
+X84	bna_app_user	Un bloqueo concurrente se aplica y avisa a SEGURIDAD (I1)	pasa
