@@ -34,7 +34,7 @@ mkdir -p "$OUT"
 
 [ -f "$TH/BD/99_bna_unificado.sql" ] || { echo "No se encontro $TH/BD/99_bna_unificado.sql" >&2; exit 1; }
 
-cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$TMP"; }
+cleanup() { docker rm -fv "$NAME" >/dev/null 2>&1 || true; rm -rf "$TMP"; }
 trap cleanup EXIT
 
 paso() { echo "-> $*"; }

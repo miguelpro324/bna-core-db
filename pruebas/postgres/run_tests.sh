@@ -25,7 +25,7 @@ TAG="bna-pruebas-$$"
 VERSIONS=(16 17)
 declare -A IMAGE=([16]="$PG16_IMAGE" [17]="$PG17_IMAGE")
 
-cleanup() { for v in "${VERSIONS[@]}"; do docker rm -f "$TAG-pg$v" >/dev/null 2>&1 || true; done; }
+cleanup() { for v in "${VERSIONS[@]}"; do docker rm -fv "$TAG-pg$v" >/dev/null 2>&1 || true; done; }
 trap cleanup EXIT
 
 for v in "${VERSIONS[@]}"; do
@@ -140,3 +140,5 @@ metadatos "$OUT/metadatos.txt" "ddl=$DDL_ORIGEN" \
   "postgresql17=$(cat "$OUT/version-pg17.txt")" "imagen17=$PG17_IMAGE"
 [ -n "$DDL" ] && exit 0
 python3 -I "$HERE/combinar.py" "$OUT" "$OUT/resultados.md" "$ROOT/informe" "${VERSIONS[@]}"
+"$HERE/prueba_revisar_resultados.sh" >/dev/null
+"$HERE/revisar_resultados.sh" "$OUT"

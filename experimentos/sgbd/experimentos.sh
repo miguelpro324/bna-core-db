@@ -26,7 +26,7 @@ PGS=("$TAG-pg16:PG 16" "$TAG-pg17:PG 17")
 declare -A PG_IMAGE=(["$TAG-pg16"]="$PG16_IMAGE" ["$TAG-pg17"]="$PG17_IMAGE")
 TMP="$(mktemp -d)"
 cleanup() {
-  docker rm -f "$MY" "${PGS[@]%%:*}" >/dev/null 2>&1 || true
+  docker rm -fv "$MY" "${PGS[@]%%:*}" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
