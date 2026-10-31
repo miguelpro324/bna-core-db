@@ -9,6 +9,6 @@
 cadena_sql() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e "s/'/''/g"; }
 
 MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --protocol=socket -uroot <<SQL || exit 1
-CREATE USER 'bna_app_user'@'%' IDENTIFIED BY '$(cadena_sql "$CORE_DB_APP_PASSWORD")' DEFAULT ROLE bna_app;
+CREATE USER 'bna_app_user'@'%' IDENTIFIED BY '$(cadena_sql "$CORE_DB_APP_PASSWORD")' DEFAULT ROLE bna_api;
 CREATE USER 'bna_admin_user'@'%' IDENTIFIED BY '$(cadena_sql "$CORE_DB_ADMIN_PASSWORD")' DEFAULT ROLE bna_admin;
 SQL

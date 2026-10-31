@@ -110,9 +110,15 @@ escritura. Está escrito a mano y se carga después de `sql/bna_core.sql`. **Que
 fuera del modelo normalizado:** no está en `modelo_bna.py`, ni en el MER, ni en la
 rama `main`, y es una divergencia de esta rama.
 
+Cada procedimiento público es atómico aunque se llame sin una transacción, registra
+su propio evento de auditoría y exige un canal. La API se conecta con el rol `bna_api`,
+que solo lee y ejecuta esos procedimientos; `bna_app` conserva sus permisos para los
+demás módulos.
+
 `pruebas/mysql/run_tests.sh` ejecuta toda la suite con la extensión cargada. Sus
 pruebas (ID `X`) quedan en `resultados/mysql/resultado-extension.tsv`, fuera de la
-matriz.
+matriz. `pruebas_sin_transaccion.sh` prueba cada procedimiento en autocommit, porque
+el arnés siempre abre una transacción.
 
 `sql/bna_datos_dev.sql` es **solo para desarrollo**: periodo abierto del mes en curso,
 BIN 004499, una agencia, un terminal por canal y un cliente, para que una base nueva

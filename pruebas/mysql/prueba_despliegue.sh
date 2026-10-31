@@ -58,19 +58,25 @@ comprobar() { # DESCRIPCION ESPERADO OBTENIDO
 
 comprobar 'configuración del servidor' 'BNA-CONFIGURACION: correcta' \
   "$(app -e 'CALL core.verificar_configuracion()' 2>&1 || true)"
-comprobar 'rol de bna_app_user' 'bna_app' "$(app -e 'SELECT CURRENT_ROLE()' 2>&1 || true)"
+comprobar 'rol de bna_app_user' 'bna_api' "$(app -e 'SELECT CURRENT_ROLE()' 2>&1 || true)"
 comprobar 'extensión cargada' '^1$' \
   "$(app -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'core' AND table_name = 'usuario_sistema'" 2>&1 || true)"
 comprobar 'bna_app_user no borra' 'denied' \
   "$(app -e 'DELETE FROM core.agencia' 2>&1 || true)"
+for tabla in cuenta_ahorro titularidad movimiento; do
+  comprobar "bna_app_user no inserta en cuentas.$tabla" 'denied' \
+    "$(app -e "INSERT INTO cuentas.$tabla () VALUES ()" 2>&1 || true)"
+done
+comprobar 'bna_app_user no inserta en tarjetas.historial_estado_tarjeta' 'denied' \
+  "$(app -e "INSERT INTO tarjetas.historial_estado_tarjeta () VALUES ()" 2>&1 || true)"
 comprobar 'bna_admin_user con su rol' 'bna_admin' \
   "$(docker exec -e MYSQL_PWD="$PW_ADMIN" "$C" mysql -ubna_admin_user -h127.0.0.1 --protocol=TCP -N \
      -e 'SELECT CURRENT_ROLE()' 2>&1 || true)"
 
 comprobar 'depósito con los datos de desarrollo' '^100.00$' "$(app 2>&1 <<'SQL' || true
 START TRANSACTION;
-CALL cuentas.abrir_cuenta('CTA-DESPLIEGUE', '00000000000000000001', 'PEN', 'INDIVIDUAL', 'AQP01', JSON_ARRAY('DEV001'));
-CALL cuentas.registrar_movimiento('CTA-DESPLIEGUE', 'DEPOSITO', 100, 'Prueba', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, @m, @r);
+CALL cuentas.abrir_cuenta('CTA-DESPLIEGUE', '00000000000000000001', 'PEN', 'INDIVIDUAL', 'AQP01', JSON_ARRAY('DEV001'), 'despliegue');
+CALL cuentas.registrar_movimiento('CTA-DESPLIEGUE', 'DEPOSITO', 100, 'Prueba', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'despliegue', @m, @r);
 COMMIT;
 SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-DESPLIEGUE';
 SQL

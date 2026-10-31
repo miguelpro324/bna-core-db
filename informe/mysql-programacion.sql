@@ -457,10 +457,14 @@ FOR EACH ROW BEGIN
                                     BIN_TO_UUID(NEW.id_tarjeta)));
         END IF;
     END IF;
+    SET @bna_estado_anterior_tarjeta = v_actual;
 END //
 
 -- MySQL: una variable de sesión no se deshace con la transacción; el
 --   manejador la limpia si algo falla antes de terminar.
+-- MySQL: el estado anterior es el que el trigger BEFORE leyó con bloqueo. Con
+--   REPEATABLE READ, una lectura aquí vería la instantánea de la transacción y
+--   podría no aplicar un cambio que el historial sí registra.
 CREATE DEFINER = 'bna_owner'@'%' TRIGGER tarjetas.tg_historial_aplicar AFTER INSERT ON tarjetas.historial_estado_tarjeta
 FOR EACH ROW BEGIN
     DECLARE v_anterior VARCHAR(25);
@@ -470,7 +474,8 @@ FOR EACH ROW BEGIN
         SET @bna_cambio_por_historial = NULL;
         RESIGNAL;
     END;
-    SELECT estado_tarjeta INTO v_anterior FROM tarjetas.tarjeta WHERE id_tarjeta = NEW.id_tarjeta;
+    SET v_anterior = @bna_estado_anterior_tarjeta;
+    SET @bna_estado_anterior_tarjeta = NULL;
     -- Registro de emisión: la tarjeta ya tiene ese estado.
     IF NOT (v_anterior <=> NEW.estado_nuevo) THEN
         SET @bna_cambio_por_historial = NEW.id_tarjeta;

@@ -15,9 +15,18 @@ CALL prueba.rechaza('X32', 'Extensión', 'Productos', 'El plazo mínimo no super
 CALL prueba.rechaza('X33', 'Extensión', 'Auditoría', 'La bitácora rechaza UPDATE aun con privilegios',
   JSON_ARRAY("CALL core.registrar_evento('CORE', 'e', '1', 'A', 'x', NULL, NULL)",
              "UPDATE core.evento_auditoria SET actor = 'y'"),
-  'BNA-AUDITORIA', 'trigger');
+  'BNA-SOLO-INSERCION', 'trigger');
 
 CALL prueba.rechaza('X34', 'Extensión', 'Auditoría', 'La bitácora rechaza DELETE aun con privilegios',
   JSON_ARRAY("CALL core.registrar_evento('CORE', 'e', '1', 'A', 'x', NULL, NULL)",
              "DELETE FROM core.evento_auditoria"),
-  'BNA-AUDITORIA', 'trigger');
+  'BNA-SOLO-INSERCION', 'trigger');
+
+CALL prueba.rechaza('X35', 'Extensión', 'Usuarios', 'El identificador del empleado debe ser un UUID válido (M6)',
+  JSON_ARRAY("INSERT INTO core.empleado (id_empleado, codigo_empleado, nombre_completo, cargo) VALUES ('c2', 'E2', 'E', 'CAJERO')"),
+  'ck_empleado_id', 'declarativo');
+
+CALL prueba.rechaza('X45', 'Extensión', 'Tarjetas', 'No se emite tarjeta sobre una cuenta cancelada (I3)',
+  JSON_ARRAY("UPDATE cuentas.cuenta_ahorro SET estado_cuenta = 'CANCELADA' WHERE num_cuenta = 'CTA-PEN-1'",
+             "CALL tarjetas.emitir_tarjeta(UUID_TO_BIN('44444444-4444-4444-8444-444444444445'), 'tok-x45', '455788', '1234', '2026-01-01', '2030-01-01', 'C001', 'CTA-PEN-1', 'pruebas')"),
+  'BNA-TARJETA', 'procedimiento');

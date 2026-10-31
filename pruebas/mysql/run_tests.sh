@@ -229,6 +229,9 @@ TRUNCATE TABLE tarjetas.intento_autenticacion;
 SELECT count(*) FROM tarjetas.intento_autenticacion;
 SQL
 
+# shellcheck source=pruebas_sin_transaccion.sh
+. "$HERE/pruebas_sin_transaccion.sh"
+
 root_ -N -B -e "SELECT id, usuario, grupo, referencia, descripcion, mecanismo, esperado, obtenido,
                        CASE WHEN ok IS NULL THEN 'N/A' WHEN ok THEN 'pasa' ELSE 'falla' END
                   FROM prueba.resultado WHERE id NOT LIKE 'X%' ORDER BY n" > "$OUT/resultado.tsv"
