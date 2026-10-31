@@ -41,6 +41,7 @@ X60	bna_app_user	Un retiro por AGE, sin tope en las fuentes, se rechaza (C2)	pas
 X61	bna_app_user	Una transferencia por AGE se rechaza (C2)	pasa
 X62	bna_app_user	Un retiro en USD por HB, sin tope en las fuentes, se rechaza (C2)	pasa
 X63	bna_app_user	Un retiro en USD por AGE se rechaza (C2)	pasa
+X149	bna_app_user	Un débito en USD por BD, con fila deshabilitada, se rechaza con RN-BD-002 (R5)	pasa
 X64	bna_app_user	Ventanilla no tiene tope automático: retiro de 2000 (C2)	pasa
 X65	bna_app_user	Ventanilla no tiene tope automático: transferencia de 15000 (C2)	pasa
 X66	bna_app_user	Ventanilla opera en USD sin tope automático (C2)	pasa
