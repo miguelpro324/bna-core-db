@@ -347,10 +347,10 @@ BEGIN
     DECLARE v_minimo SMALLINT;
     SELECT min_titulares INTO v_minimo FROM cuentas.regimen_cuenta WHERE cod_regimen = p_regimen;
     IF v_minimo IS NULL THEN
-        CALL core.fallar(CONCAT('BNA-CUENTA: régimen desconocido ', coalesce(p_regimen, '(nulo)')));
+        CALL core.fallar(CONCAT('BNA-REGIMEN: régimen desconocido ', coalesce(p_regimen, '(nulo)')));
     END IF;
     IF coalesce(JSON_LENGTH(p_titulares), 0) < v_minimo THEN
-        CALL core.fallar(CONCAT('BNA-CUENTA: el régimen ', p_regimen, ' exige ', v_minimo, ' titulares'));
+        CALL core.fallar(CONCAT('BNA-REGIMEN: el régimen ', p_regimen, ' exige ', v_minimo, ' titulares'));
     END IF;
     INSERT INTO cuentas.cuenta_ahorro (num_cuenta, cci, moneda, regimen, estado_cuenta, id_agencia)
     VALUES (p_num_cuenta, p_cci, p_moneda, p_regimen, 'ACTIVA', p_id_agencia);

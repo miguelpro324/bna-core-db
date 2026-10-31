@@ -89,7 +89,7 @@ CALL prueba.rechaza('X17', 'Extensión', 'Auditoría', 'bna_app no modifica la b
 
 CALL prueba.rechaza('X18', 'Extensión', 'Cuentas', 'Una mancomunada exige sus titulares',
   JSON_ARRAY("CALL cuentas.abrir_cuenta('CTA-X18', '00000000000000000018', 'PEN', 'MANCOMUNADA_CONJUNTA', 'AQP01', JSON_ARRAY('C001'))"),
-  'BNA-CUENTA', 'procedimiento');
+  'BNA-REGIMEN', 'procedimiento');
 
 CALL prueba.verifica('X19', 'Extensión', 'Cuentas', 'La cuenta se abre con su titular',
   JSON_ARRAY("CALL cuentas.abrir_cuenta('CTA-X19', '00000000000000000019', 'PEN', 'INDIVIDUAL', 'AQP01', JSON_ARRAY('C001'))"),
