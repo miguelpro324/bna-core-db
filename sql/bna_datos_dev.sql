@@ -1,3 +1,6 @@
+-- Sin esto, el cliente del contenedor lee este archivo como latin1.
+SET NAMES utf8mb4;
+
 -- =====================================================================
 -- Datos de referencia SOLO PARA DESARROLLO (MySQL 8.4)
 -- =====================================================================

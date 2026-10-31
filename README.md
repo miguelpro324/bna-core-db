@@ -99,6 +99,10 @@ MySQL ignora un archivo de configuración escribible por todos.
 
 `pruebas/mysql/prueba_despliegue.sh` comprueba ese arranque.
 
+Los archivos SQL fijan `SET NAMES utf8mb4` porque el cliente del contenedor los leería como latin1.
+Un volumen creado antes de ese cambio conserva los acentos dañados, en los datos y en los mensajes de las rutinas: hay que recrearlo.
+`pruebas/mysql/lecturas_api.txt` es la lista exacta de lo que `bna_api` puede leer; las pruebas X136 y X137 y `prueba_despliegue.sh` fallan ante cualquier lectura adicional.
+
 Las versiones publicadas son etiquetas inmutables `bd-vX.Y-mysql`.
 
 ## Extensiones de integración

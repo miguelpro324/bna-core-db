@@ -6,7 +6,8 @@
 
 seguridad_() { docker exec -i -e MYSQL_PWD=seg "$C" mysql -ubna_seguridad_user --default-character-set=utf8mb4 "$@"; }
 root_ -e "CREATE ROLE IF NOT EXISTS bna_seguridad;
-          CREATE USER 'bna_seguridad_user'@'%' IDENTIFIED BY 'seg' DEFAULT ROLE bna_seguridad"
+          CREATE USER 'bna_seguridad_user'@'%' IDENTIFIED BY 'seg' DEFAULT ROLE bna_seguridad;
+          GRANT INSERT ON prueba.cerrojo TO 'bna_seguridad_user'@'%'"
 
 # caso ID DESCRIPCION CONDICION < sentencias: tras ejecutarlas, CONDICION debe ser 1.
 # CLIENTE elige la sesión: api_ por omisión.
@@ -274,9 +275,11 @@ SQL
 # N1: un deadlock dentro de core.registrar_asiento. La sesión W, con más trabajo para
 # que InnoDB no la elija como víctima, bloquea la moneda; V reserva la llave y espera
 # esa moneda al insertar el asiento; W pide la misma llave y cierra el ciclo.
-# deadlock ID DESCRIPCION LLAVE INICIO FIN: V debe recibir 1213 y no dejar nada.
+# deadlock ID DESCRIPCION LLAVE INICIO FIN [LLAMADA]: V debe recibir 1213 y no dejar
+# nada. LLAMADA, con $llave, reemplaza al depósito.
 deadlock() {
   local id="$1" desc="$2" llave="$3" inicio="$4" fin="$5" salida ok=0 saldo_antes saldo_despues
+  local llamada="${6:-CALL cuentas.registrar_movimiento('AC-1', 'DEPOSITO', 10, 'g', 'VEN', UUID_TO_BIN(UUID()), '$llave', REPEAT('a', 64), 'pruebas', @m, @r);}"
   saldo_antes="$(root_ -N -e "SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'AC-1'")"
   root_ > "$OUT/$id-w.log" 2>&1 <<SQL &
 START TRANSACTION;
@@ -292,7 +295,7 @@ SQL
   sleep 1
   salida="$(api_ --force 2>&1 <<SQL || true
 $inicio
-CALL cuentas.registrar_movimiento('AC-1', 'DEPOSITO', 10, 'g', 'VEN', UUID_TO_BIN(UUID()), '$llave', REPEAT('a', 64), 'pruebas', @m, @r);
+$llamada
 SELECT 'repetido', @r, 'uuid', HEX(@m);
 $fin
 SQL
@@ -306,3 +309,80 @@ SQL
 }
 deadlock X107 'El deadlock en registrar_asiento llega al cliente en autocommit (N1)' k107 '' ''
 deadlock X108 'El deadlock en registrar_asiento llega al cliente en su transacción (N1)' k108 'START TRANSACTION;' 'COMMIT;'
+
+# R3: la guarda de 1305 de cada procedimiento. Fuera de la transacción de quien llama
+# no hace falta, porque ROLLBACK no depende del savepoint.
+TRANSFERENCIA() { echo "CALL cuentas.registrar_transferencia('AC-1', 'AC-2', 10, 'g', 'VEN', UUID_TO_BIN(UUID()), '$1', REPEAT('a', 64), 'pruebas', @m, @c, @r);"; }
+deadlock X140 'El deadlock de una transferencia llega al cliente en autocommit (R3)' k140 '' '' "$(TRANSFERENCIA k140)"
+deadlock X141 'El deadlock de una transferencia llega al cliente en su transacción (R3)' k141 \
+  'START TRANSACTION;' 'COMMIT;' "$(TRANSFERENCIA k141)"
+
+# El mismo ciclo para los procedimientos sin asiento: V toma un candado propio antes de
+# llamar y espera la bitácora, que W tiene bloqueada; W pide ese candado.
+# deadlock_procedimiento ID NOMBRE CONDICION LLAMADA: tras 1213, CONDICION debe ser 1.
+deadlock_procedimiento() {
+  local id="$1" nombre="$2" cond="$3" llamada="$4" salida obtenido ok=0
+  root_ > "$OUT/$id-w.log" 2>&1 <<SQL &
+START TRANSACTION;
+INSERT INTO core.tipo_cambio
+WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 500)
+SELECT 'USD', 'PEN', '2000-01-01' + INTERVAL i DAY, 1 FROM n;
+SELECT COUNT(*) FROM core.evento_auditoria FOR UPDATE;
+DO SLEEP(2);
+INSERT INTO prueba.cerrojo VALUES ('$id');
+ROLLBACK;
+SQL
+  local w=$!
+  sleep 1
+  salida="$("${CLIENTE:-api_}" --force 2>&1 <<SQL || true
+START TRANSACTION;
+INSERT INTO prueba.cerrojo VALUES ('$id');
+$llamada
+COMMIT;
+SQL
+)"
+  wait "$w" || true
+  echo "$salida" > "$OUT/$id-v.log"
+  obtenido="$(root_ -N -e "SELECT coalesce(($cond), 0)" 2>&1 || true)"
+  echo "$salida" | grep -q '^ERROR 1213' && [ "$obtenido" = 1 ] && ok=1
+  registrar "$id" bna_api_user Extensión 'Deadlock' "$nombre conserva 1213 en la transacción de quien llama (R3)" procedimiento \
+    'ERROR 1213' "$obtenido; $(echo "$salida" | grep -m1 ERROR | cut -c1-120 | tr -d "'")" "$ok"
+}
+deadlock_procedimiento X142 crear_usuario "SELECT COUNT(*) = 0 FROM core.usuario_sistema WHERE username = 'ac-x142'" \
+  "CALL core.crear_usuario(UUID_TO_BIN(UUID()), 'ac-x142', 'A', 'ASESOR', 'h', 'BCRYPT', 'v2', NULL, TRUE, 'pruebas');"
+deadlock_procedimiento X143 asignar_rol "SELECT rol = 'ASESOR' FROM core.usuario_sistema WHERE id_usuario = $USUARIO" \
+  "CALL core.asignar_rol($USUARIO, 'AUDITOR', 'pruebas', @f);"
+deadlock_procedimiento X144 migrar_hash_usuario "SELECT hash_password = 'viejo' FROM core.usuario_sistema WHERE id_usuario = $USUARIO" \
+  "CALL core.migrar_hash_usuario($USUARIO, 'SHA256', 'nuevo', 'BCRYPT', 'v2', 'pruebas', @f);"
+deadlock_procedimiento X145 abrir_cuenta "SELECT COUNT(*) = 0 FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'AC-X145'" \
+  "CALL cuentas.abrir_cuenta('AC-X145', '00000000000000000145', 'PEN', 'INDIVIDUAL', 'AQP01', JSON_ARRAY('C001'), 'pruebas');"
+deadlock_procedimiento X146 emitir_tarjeta "SELECT COUNT(*) = 0 FROM tarjetas.tarjeta WHERE pan_token = 'tok-x146'" \
+  "CALL tarjetas.emitir_tarjeta(UUID_TO_BIN(UUID()), 'tok-x146', '455788', '1234', '2026-01-01', '2030-01-01', 'C001', 'AC-1', 'pruebas');"
+deadlock_procedimiento X147 cambiar_estado_tarjeta "$(estado "$PLASTICO" ACTIVA)" \
+  "CALL tarjetas.cambiar_estado_tarjeta($PLASTICO, 'BLOQUEADA', 'x', 'CLIENTE', 'pruebas', @h);"
+CLIENTE=seguridad_ deadlock_procedimiento X148 desbloquear_tarjeta "$(estado "$T5" BLOQUEADA)" \
+  "CALL tarjetas.desbloquear_tarjeta($T5, 'x', 'pruebas', @h);"
+
+# R4: la lista de lo que bna_api puede leer es exacta. Se intenta leer cada tabla y
+# vista de las bases del sistema con la sesión de la API.
+lista="$(lecturas_de root_ api_ || true)"
+diferencia="$(diff "$HERE/lecturas_api.txt" <(echo "$lista") || true)"
+registrar X136 bna_api_user Extensión 'Permisos' 'bna_api lee exactamente los objetos de lecturas_api.txt (R4)' privilegio \
+  'sin diferencias' "${diferencia:-sin diferencias}" "$([ -z "$diferencia" ] && echo 1 || echo 0)"
+comodines="$(root_ -N -e "$CONCESIONES_AMPLIAS_API")"
+registrar X137 root Extensión 'Permisos' 'bna_api no tiene SELECT global, por base, por columna ni roles heredados (R4)' privilegio \
+  0 "$comodines" "$([ "$comodines" = 0 ] && echo 1 || echo 0)"
+
+# Una llave reservada sin operación no devuelve un resultado vacío (rama de reservar_llave).
+llave_sin_operacion() {
+  local id="$1" desc="$2" llave="$3" llamada="$4" salida ok=0
+  root_ -e "INSERT INTO cuentas.idempotencia_movimiento (llave, huella) VALUES ('$llave', REPEAT('a', 64))"
+  salida="$(api_ --force 2>&1 <<< "$llamada" || true)"
+  echo "$salida" | grep -q 'BNA-IDEMPOTENCIA.*no tiene una operación registrada' && ok=1
+  registrar "$id" bna_api_user Extensión 'Idempotencia' "$desc" procedimiento 'BNA-IDEMPOTENCIA' \
+    "$(echo "$salida" | head -1 | cut -c1-120 | tr -d "'")" "$ok"
+}
+llave_sin_operacion X138 'Un depósito rechaza una llave sin operación registrada' k138 \
+  "CALL cuentas.registrar_movimiento('AC-1', 'DEPOSITO', 10, 'g', 'VEN', UUID_TO_BIN(UUID()), 'k138', REPEAT('a', 64), 'pruebas', @m, @r);"
+llave_sin_operacion X139 'Una transferencia rechaza una llave sin operación registrada' k139 \
+  "$(TRANSFERENCIA k139)"

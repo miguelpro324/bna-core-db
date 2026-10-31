@@ -105,6 +105,27 @@ comprobar 'bna_seguridad_user solo ejecuta desbloquear_tarjeta' 'denied' \
 comprobar 'bna_seguridad_user llega al procedimiento' 'BNA-DESBLOQUEO' \
   "$(seguridad -e "CALL tarjetas.desbloquear_tarjeta(UUID_TO_BIN('11111111-1111-4111-8111-111111111111'), 'x', 'x', @h)" 2>&1 || true)"
 
+# Los archivos se cargan con el cliente del contenedor, que sin SET NAMES los lee como latin1.
+utf8() { app --default-character-set=utf8mb4 "$@"; }
+root_despliegue() { docker exec -i -e MYSQL_PWD="$PW_ROOT" "$C" mysql -uroot --default-character-set=utf8mb4 "$@"; }
+exacto() { # DESCRIPCION ESPERADO OBTENIDO
+  if [ "$2" = "$3" ]; then echo "ok    $1"; else echo "FALLA $1: $3"; fallas=$((fallas + 1)); fi
+}
+exacto 'acento del DDL' 'Dólar estadounidense' "$(utf8 -e "SELECT nombre FROM core.moneda WHERE cod_moneda = 'USD'" 2>&1)"
+exacto 'acento de la extensión' 'Depósitos de ahorro' \
+  "$(root_despliegue -N -e "SELECT nombre FROM core.cuenta_contable WHERE codigo_contable = '2101'" 2>&1)"
+exacto 'acento de los datos de desarrollo' 'Débito BNA física' \
+  "$(root_despliegue -N -e "SELECT descripcion FROM tarjetas.bin_tarjeta WHERE bin = '004499'" 2>&1)"
+comprobar 'acento en un mensaje de la extensión' 'un débito por ATM exige una autorización' \
+  "$(utf8 -e "CALL cuentas.registrar_movimiento('CTA-DESPLIEGUE', 'RETIRO', 1, 'x', 'ATM', UUID_TO_BIN(UUID()), NULL, NULL, 'x', @m, @r)" 2>&1 || true)"
+exacto 'rutinas y triggers cargados en utf8mb4' 0 "$(root_despliegue -N -e "
+  SELECT (SELECT COUNT(*) FROM information_schema.routines
+           WHERE routine_schema IN ('core', 'clientes', 'cuentas', 'tarjetas', 'creditos') AND character_set_client <> 'utf8mb4')
+       + (SELECT COUNT(*) FROM information_schema.triggers
+           WHERE trigger_schema IN ('core', 'clientes', 'cuentas', 'tarjetas', 'creditos') AND character_set_client <> 'utf8mb4')" 2>&1)"
+exacto 'bna_app_user lee exactamente lecturas_api.txt' "$(cat "$HERE/lecturas_api.txt")" "$(lecturas_de root_despliegue utf8 2>&1 || true)"
+exacto 'bna_api sin concesiones amplias' 0 "$(root_despliegue -N -e "$CONCESIONES_AMPLIAS_API" 2>&1)"
+
 if [ "$fallas" -ne 0 ]; then
   docker logs "$C" 2>&1 | tail -20
   exit 1

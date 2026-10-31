@@ -84,6 +84,8 @@ root_ -e "INSERT INTO core.periodo_contable VALUES (2001, 1, '2001-01-01', '2001
 root_ -e "CREATE USER 'bna_api_user'@'%' IDENTIFIED BY 'api' DEFAULT ROLE bna_api;
           GRANT EXECUTE ON prueba.* TO 'bna_api_user'@'%';
           GRANT INSERT ON prueba.resultado TO 'bna_api_user'@'%'"
+root_ -e "CREATE TABLE prueba.cerrojo (id VARCHAR(10) PRIMARY KEY);
+          GRANT INSERT ON prueba.cerrojo TO 'bna_api_user'@'%'"
 app_ < "$HERE/pruebas.sql" > "$OUT/pruebas-app.log" 2>&1
 app_ < "$HERE/pruebas_extension.sql" > "$OUT/pruebas-extension-app.log" 2>&1
 api_ < "$HERE/pruebas_extension_api.sql" > "$OUT/pruebas-extension-api.log" 2>&1
@@ -252,8 +254,6 @@ metadatos "$OUT/metadatos.txt" "ddl=$DDL_ORIGEN" "mysql=$version" "imagen=$MYSQL
   "sql_mode=$modo" "time_zone=$zona" "collation=$coll" "event_scheduler=$ev" "aislamiento=$iso" \
   "extension=sql/bna_extension.sql"
 python3 -I "$HERE/combinar.py" "$OUT" "$ROOT/informe" "$version"
-if grep -q 'falla$' "$OUT/resultado-extension.tsv"; then
-  echo "   la extensión tiene pruebas que fallan; ver $OUT/resultado-extension.tsv"
-  exit 1
-fi
+"$HERE/prueba_revisar_resultados.sh" >/dev/null
+"$HERE/revisar_resultados.sh" "$OUT"
 echo "   Extensión: $(grep -c 'pasa$' "$OUT/resultado-extension.tsv") pasan"

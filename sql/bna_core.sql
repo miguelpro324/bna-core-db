@@ -1545,9 +1545,9 @@ END //
 --   la transacción, que puede ser anterior a lo que confirmó la operación por
 --   la que se esperó. Por eso también el consumo del día se lee con
 --   FOR UPDATE: una lectura con bloqueo lee siempre lo último confirmado.
--- DECISIÓN: si no hay fila en LIMITE_CANAL para el canal y la moneda, el
---   canal no tiene tope documentado; si la hay con habilitado = FALSE, el
---   canal no opera en esa moneda.
+-- DECISIÓN: sin fila en LIMITE_CANAL para el canal y la moneda, o con
+--   habilitado = FALSE, el canal no opera en esa moneda; una fila con
+--   monto nulo es un canal sin tope automático.
 -- DECISIÓN: el movimiento es inmutable salvo el paso de APROBADO a
 --   EXTORNADO; el extorno devuelve el consumo del día y el saldo se repone
 --   con un movimiento EXTORNO.

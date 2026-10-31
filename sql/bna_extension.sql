@@ -1,3 +1,6 @@
+-- Sin esto, el cliente del contenedor lee este archivo como latin1.
+SET NAMES utf8mb4;
+
 -- =====================================================================
 -- Extensiones de integración de la rama mysql (MySQL 8.4)
 -- =====================================================================
