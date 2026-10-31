@@ -126,7 +126,7 @@ las pruebas de la matriz y para los módulos que aún no tengan procedimientos.
 `bna_app` siguen pudiendo saltarse esa restricción con sus permisos directos.
 
 Un débito por un canal y una moneda sin fila en `core.limite_canal` se rechaza con
-`RN-BD-002` (`ERR-TAR-006` en una autorización):
+`BNA-CANAL` (`ERR-TAR-006` en una autorización). `RN-BD-002` queda para la regla de la Billetera Digital, la fila con `habilitado` falso:
 
 | Canal | PEN | USD | Fuente |
 |---|---|---|---|

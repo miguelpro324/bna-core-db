@@ -34,7 +34,7 @@ CALL prueba.rechaza('X45', 'Extensión', 'Tarjetas', 'No se emite tarjeta sobre 
 CALL prueba.rechaza('X69', 'Extensión', 'Canal', 'Sin la fila explícita, ventanilla también se rechaza (C2)',
   JSON_ARRAY("DELETE FROM core.limite_canal WHERE id_canal = 'VEN' AND moneda = 'PEN'",
              "CALL cuentas.registrar_movimiento('CTA-PEN-2', 'RETIRO', 1, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
-  'RN-BD-002', 'trigger');
+  'BNA-CANAL: el canal', 'trigger');
 
 CALL prueba.rechaza('X56', 'Extensión', 'Canal', 'Un canal inactivo se rechaza (I7)',
   JSON_ARRAY("UPDATE core.canal SET activo = FALSE WHERE id_canal = 'VEN'",

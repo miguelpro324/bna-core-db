@@ -204,7 +204,8 @@ END //
 --   * La cuenta admite débitos o créditos según su estado (ESTADO_CUENTA).
 --   * El asiento del movimiento está en la moneda de la cuenta.
 --   * Un débito no supera el saldo disponible ni el tope diario del canal
---     (RN-TOP-001; RN-BD-002 cuando el canal no opera en esa moneda).
+--     (RN-TOP-001; BNA-CANAL sin fila para esa moneda, RN-BD-002 con la fila
+--     deshabilitada).
 --   * Los saldos y el consumo del día se actualizan en la misma transacción.
 -- DECISIÓN: el tope y el saldo se comprometen una sola vez por operación.
 --   Un débito con autorización de Tarjetas los compromete al autorizarse:
@@ -294,7 +295,10 @@ FOR EACH ROW BEGIN
                   FROM core.limite_canal WHERE id_canal = NEW.id_canal AND moneda = v_moneda_cuenta;
                 -- Sin fila en core.limite_canal el canal no opera en esa moneda; «sin
                 -- tope» es una fila con monto nulo (ventanilla, Tarjetas, tabla 4).
-                IF NOT v_hay_limite OR NOT v_habilitado THEN
+                IF NOT v_hay_limite THEN
+                    CALL core.fallar(CONCAT('BNA-CANAL: el canal ', NEW.id_canal, ' no opera en ', v_moneda_cuenta));
+                END IF;
+                IF NOT v_habilitado THEN
                     CALL core.fallar(CONCAT('RN-BD-002: el canal ', NEW.id_canal, ' no opera en ', v_moneda_cuenta));
                 END IF;
                 IF v_tope IS NOT NULL THEN
@@ -619,7 +623,10 @@ BEGIN
         END IF;
         SELECT TRUE, habilitado, monto_maximo_diario INTO v_hay_limite, v_habilitado, v_tope
           FROM core.limite_canal WHERE id_canal = v_canal AND moneda = v_moneda;
-        IF NOT v_hay_limite OR NOT v_habilitado THEN
+        IF NOT v_hay_limite THEN
+            CALL core.fallar(CONCAT('ERR-TAR-006: el canal ', v_canal, ' no opera en ', v_moneda));
+        END IF;
+        IF NOT v_habilitado THEN
             CALL core.fallar(CONCAT('ERR-TAR-006: el canal ', v_canal, ' no opera en ', v_moneda, ' (RN-BD-002)'));
         END IF;
         IF v_tope IS NOT NULL THEN

@@ -189,19 +189,23 @@ CALL prueba.verifica('X59', 'Extensión', 'Periodos', 'La fecha de negocio se co
 -- C2 reabierto: un débito sin fila en core.limite_canal se rechaza.
 CALL prueba.rechaza('X60', 'Extensión', 'Canal', 'Un retiro por AGE, sin tope en las fuentes, se rechaza (C2)',
   JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 20000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-PEN-1', 'RETIRO', 2000, 'g', 'AGE', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
-  'RN-BD-002', 'trigger');
+  'BNA-CANAL: el canal', 'trigger');
 
 CALL prueba.rechaza('X61', 'Extensión', 'Canal', 'Una transferencia por AGE se rechaza (C2)',
   JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 20000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_transferencia('CTA-PEN-1', 'CTA-PEN-2', 15000, 'g', 'AGE', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @d, @c, @r)"),
-  'RN-BD-002', 'trigger');
+  'BNA-CANAL: el canal', 'trigger');
 
 CALL prueba.rechaza('X62', 'Extensión', 'Canal', 'Un retiro en USD por HB, sin tope en las fuentes, se rechaza (C2)',
   JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-USD-1', 'DEPOSITO', 5000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-USD-1', 'RETIRO', 1000, 'g', 'HB', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
-  'RN-BD-002', 'trigger');
+  'BNA-CANAL: el canal', 'trigger');
 
 CALL prueba.rechaza('X63', 'Extensión', 'Canal', 'Un retiro en USD por AGE se rechaza (C2)',
   JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-USD-1', 'DEPOSITO', 5000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-USD-1', 'RETIRO', 1000, 'g', 'AGE', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
-  'RN-BD-002', 'trigger');
+  'BNA-CANAL: el canal', 'trigger');
+
+CALL prueba.rechaza('X149', 'Extensión', 'Canal', 'Un débito en USD por BD, con fila deshabilitada, se rechaza con RN-BD-002 (R5)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-USD-1', 'DEPOSITO', 5000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-USD-1', 'RETIRO', 1, 'g', 'BD', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  'RN-BD-002: el canal BD', 'trigger');
 
 CALL prueba.verifica('X64', 'Extensión', 'Canal', 'Ventanilla no tiene tope automático: retiro de 2000 (C2)',
   JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 20000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-PEN-1', 'RETIRO', 2000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
@@ -221,4 +225,4 @@ CALL prueba.verifica('X67', 'Extensión', 'Canal', 'Un crédito por AGE no depen
 
 CALL prueba.rechaza('X68', 'Extensión', 'Canal', 'Una autorización por HB en USD se rechaza como en el movimiento (C2)',
   JSON_ARRAY("INSERT INTO tarjetas.autorizacion (tipo_operacion, monto, estado_autorizacion, id_canal, id_tarjeta, num_cuenta) VALUES ('RETIRO', 10, 'AUTORIZADA', 'HB', UUID_TO_BIN('a0000000-0000-4000-8000-000000000001'), 'CTA-USD-1')"),
-  'ERR-TAR-006.*no opera', 'trigger');
+  'ERR-TAR-006: el canal HB no opera en USD$', 'trigger');
