@@ -20,6 +20,7 @@ PW_ROOT="raiz-$RANDOM"
 # Comillas y barra invertida: crear_usuarios.sh debe escaparlas.
 PW_APP="app'con\\raros-$RANDOM"
 PW_ADMIN="admin-$RANDOM"
+PW_SEGURIDAD="seguridad-$RANDOM"
 
 cleanup() { docker rm -f "$C" >/dev/null 2>&1 || true; rm -rf "$TMP"; }
 trap cleanup EXIT
@@ -31,6 +32,7 @@ docker run -d --name "$C" \
   -e MYSQL_ROOT_PASSWORD="$PW_ROOT" \
   -e CORE_DB_APP_PASSWORD="$PW_APP" \
   -e CORE_DB_ADMIN_PASSWORD="$PW_ADMIN" \
+  -e CORE_DB_SEGURIDAD_PASSWORD="$PW_SEGURIDAD" \
   -v "$TMP/bna.cnf:/bna/bna.cnf:ro" \
   -v "$ROOT/sql/bna_core.sql:/docker-entrypoint-initdb.d/01_bna_core.sql:ro" \
   -v "$ROOT/sql/bna_extension.sql:/docker-entrypoint-initdb.d/02_bna_extension.sql:ro" \
@@ -81,6 +83,15 @@ COMMIT;
 SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-DESPLIEGUE';
 SQL
 )"
+
+seguridad() { docker exec -i -e MYSQL_PWD="$PW_SEGURIDAD" "$C" mysql -ubna_seguridad_user -h127.0.0.1 --protocol=TCP -N "$@"; }
+comprobar 'rol de bna_seguridad_user' 'bna_seguridad' "$(seguridad -e 'SELECT CURRENT_ROLE()' 2>&1 || true)"
+comprobar 'bna_app_user no desbloquea' 'denied' \
+  "$(app -e "CALL tarjetas.desbloquear_tarjeta(UUID_TO_BIN(UUID()), 'x', 'x', @h)" 2>&1 || true)"
+comprobar 'bna_seguridad_user solo ejecuta desbloquear_tarjeta' 'denied' \
+  "$(seguridad -e "CALL cuentas.abrir_cuenta('X', '00000000000000000002', 'PEN', 'INDIVIDUAL', NULL, JSON_ARRAY('DEV001'), 'x')" 2>&1 || true)"
+comprobar 'bna_seguridad_user llega al procedimiento' 'BNA-DESBLOQUEO' \
+  "$(seguridad -e "CALL tarjetas.desbloquear_tarjeta(UUID_TO_BIN('11111111-1111-4111-8111-111111111111'), 'x', 'x', @h)" 2>&1 || true)"
 
 if [ "$fallas" -ne 0 ]; then
   docker logs "$C" 2>&1 | tail -20

@@ -9,6 +9,11 @@
 --   hace por los procedimientos de este archivo, que corren como bna_owner.
 -- DECISIÓN: la API se conecta con el rol bna_api, que solo lee y ejecuta los
 --   procedimientos. bna_app conserva sus permisos para los demás módulos.
+-- DECISIÓN: desbloquear una tarjeta solo es posible con el rol bna_seguridad. El
+--   origen no lo declara quien llama: desbloquear_tarjeta siempre registra SEGURIDAD
+--   y cambiar_estado_tarjeta rechaza todo desbloqueo. bna_admin conserva el
+--   privilegio porque tiene ALL sobre tarjetas.*, y bna_app puede escribir el
+--   historial directamente: la restricción cubre a bna_api y a bna_seguridad.
 -- DECISIÓN: cada procedimiento público es atómico aunque se llame sin una
 --   transacción, y registra su propio evento de auditoría, de modo que la
 --   operación y el evento se confirman o se deshacen juntos.
@@ -608,6 +613,9 @@ BEGIN
         IF v_anterior IS NULL THEN
             CALL core.fallar('BNA-TARJETA: la tarjeta no existe');
         END IF;
+        IF v_anterior IN ('BLOQUEADA', 'RETENIDA') AND p_estado = 'ACTIVA' THEN
+            CALL core.fallar('BNA-DESBLOQUEO: el desbloqueo solo lo hace el módulo de Seguridad');
+        END IF;
         INSERT INTO tarjetas.historial_estado_tarjeta (estado_nuevo, motivo, origen, id_tarjeta)
         VALUES (p_estado, p_motivo, p_origen, p_id);
         SET p_id_historial = LAST_INSERT_ID();
@@ -618,9 +626,43 @@ BEGIN
     END;
 END //
 
+CREATE DEFINER = 'bna_owner'@'%' PROCEDURE tarjetas.desbloquear_tarjeta(
+    IN p_id BINARY(16), IN p_motivo VARCHAR(255), IN p_actor VARCHAR(40), OUT p_id_historial BIGINT)
+    COMMENT 'Desbloquea una tarjeta BLOQUEADA o RETENIDA, con origen SEGURIDAD.'
+BEGIN
+    DECLARE v_propia BOOLEAN DEFAULT FALSE;
+    DECLARE v_anterior VARCHAR(25);
+    BEGIN
+        DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
+        SAVEPOINT bna_op;
+        RELEASE SAVEPOINT bna_op;
+    END;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    BEGIN
+        DECLARE EXIT HANDLER FOR SQLEXCEPTION
+        BEGIN
+            -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
+            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            RESIGNAL;
+        END;
+        SELECT estado_tarjeta INTO v_anterior FROM tarjetas.tarjeta WHERE id_tarjeta = p_id FOR UPDATE;
+        IF v_anterior IS NULL OR v_anterior NOT IN ('BLOQUEADA', 'RETENIDA') THEN
+            CALL core.fallar('BNA-DESBLOQUEO: la tarjeta no está bloqueada');
+        END IF;
+        INSERT INTO tarjetas.historial_estado_tarjeta (estado_nuevo, motivo, origen, id_tarjeta)
+        VALUES ('ACTIVA', p_motivo, 'SEGURIDAD', p_id);
+        SET p_id_historial = LAST_INSERT_ID();
+        CALL core.registrar_evento('CORE', 'tarjeta', BIN_TO_UUID(p_id), 'DESBLOQUEAR_TARJETA', p_actor, NULL,
+                                   JSON_OBJECT('estado_anterior', v_anterior, 'id_historial', p_id_historial));
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    END;
+END //
+
 DELIMITER ;
 
-CREATE ROLE IF NOT EXISTS bna_api;
+CREATE ROLE IF NOT EXISTS bna_api, bna_seguridad;
+GRANT EXECUTE ON PROCEDURE tarjetas.desbloquear_tarjeta TO bna_seguridad;
 GRANT SELECT ON core.* TO bna_api;
 GRANT SELECT ON clientes.* TO bna_api;
 GRANT SELECT ON cuentas.* TO bna_api;

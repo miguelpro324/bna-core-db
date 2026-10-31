@@ -3,10 +3,15 @@
 # Las carga run_tests.sh, que define root_, app_ y registrar.
 # shellcheck shell=bash
 
+seguridad_() { docker exec -i -e MYSQL_PWD=seg "$C" mysql -ubna_seguridad_user --default-character-set=utf8mb4 "$@"; }
+root_ -e "CREATE ROLE IF NOT EXISTS bna_seguridad;
+          CREATE USER 'bna_seguridad_user'@'%' IDENTIFIED BY 'seg' DEFAULT ROLE bna_seguridad"
+
 # caso ID DESCRIPCION CONDICION < sentencias: tras ejecutarlas, CONDICION debe ser 1.
+# CLIENTE elige la sesión: app_ por omisión.
 caso() {
   local id="$1" desc="$2" cond="$3" salida obtenido
-  salida="$(app_ --force 2>&1 || true)"
+  salida="$("${CLIENTE:-app_}" --force 2>&1 || true)"
   obtenido="$(root_ -N -e "SELECT coalesce(($cond), 0)" 2>&1 || true)"
   registrar "$id" bna_app_user Extensión 'Sin transacción' "$desc" procedimiento 1 \
     "$obtenido; $(echo "$salida" | grep -m1 ERROR | cut -c1-120 | tr -d "'")" "$([ "$obtenido" = 1 ] && echo 1 || echo 0)"
@@ -124,8 +129,56 @@ COMMIT;
 SQL
 sesion1=$!
 sleep 1
-app_ -e "CALL tarjetas.cambiar_estado_tarjeta($TARJETA, 'ACTIVA', 'y', 'OPERADOR', 'pruebas', @h)"
+seguridad_ -e "CALL tarjetas.desbloquear_tarjeta($TARJETA, 'y', 'pruebas', @h)" || true
 wait "$sesion1" || true
 caso X84 'Un bloqueo concurrente se aplica y avisa a SEGURIDAD (I1)' \
   "SELECT (SELECT estado_tarjeta FROM tarjetas.tarjeta WHERE id_tarjeta = $TARJETA) = 'BLOQUEADA'
       AND (SELECT COUNT(*) FROM tarjetas.evento_salida WHERE id_tarjeta = $TARJETA AND carga_json->>'\$.motivo' = 'robo') = 1" </dev/null
+
+# I2: el desbloqueo solo existe para bna_seguridad.
+root_ <<'SQL'
+INSERT INTO tarjetas.tarjeta (id_tarjeta, pan_token, bin, ultimos4, fecha_emision, fecha_vencimiento, estado_tarjeta, cod_cliente)
+VALUES (UUID_TO_BIN('88888888-8888-4888-8888-888888888881'), 'tok-x85', '455788', '1234', '2026-01-01', '2030-01-01', 'ACTIVA', 'C001'),
+       (UUID_TO_BIN('88888888-8888-4888-8888-888888888882'), 'tok-x87', '455788', '1234', '2026-01-01', '2030-01-01', 'ACTIVA', 'C001'),
+       (UUID_TO_BIN('88888888-8888-4888-8888-888888888883'), 'tok-x92', '455788', '1234', '2026-01-01', '2030-01-01', 'PENDIENTE_ACTIVACION', 'C001');
+INSERT INTO tarjetas.historial_estado_tarjeta (estado_nuevo, motivo, origen, id_tarjeta)
+VALUES ('BLOQUEADA', 'x', 'SEGURIDAD', UUID_TO_BIN('88888888-8888-4888-8888-888888888881')),
+       ('RETENIDA', 'x', 'SISTEMA', UUID_TO_BIN('88888888-8888-4888-8888-888888888882'));
+SQL
+T1="UUID_TO_BIN('88888888-8888-4888-8888-888888888881')"
+T2="UUID_TO_BIN('88888888-8888-4888-8888-888888888882')"
+T3="UUID_TO_BIN('88888888-8888-4888-8888-888888888883')"
+estado() { echo "SELECT estado_tarjeta = '$2' FROM tarjetas.tarjeta WHERE id_tarjeta = $1"; }
+caso X85 'cambiar_estado_tarjeta no desbloquea con origen OPERADOR (I2)' "$(estado "$T1" BLOQUEADA)" <<SQL
+CALL tarjetas.cambiar_estado_tarjeta($T1, 'ACTIVA', 'x', 'OPERADOR', 'pruebas', @h);
+SQL
+caso X86 'cambiar_estado_tarjeta no desbloquea con origen SEGURIDAD (I2)' "$(estado "$T1" BLOQUEADA)" <<SQL
+CALL tarjetas.cambiar_estado_tarjeta($T1, 'ACTIVA', 'x', 'SEGURIDAD', 'pruebas', @h);
+SQL
+caso X87 'cambiar_estado_tarjeta no reactiva una tarjeta RETENIDA (I2)' "$(estado "$T2" RETENIDA)" <<SQL
+CALL tarjetas.cambiar_estado_tarjeta($T2, 'ACTIVA', 'x', 'OPERADOR', 'pruebas', @h);
+SQL
+caso X88 'bna_app no ejecuta desbloquear_tarjeta (I2)' "$(estado "$T1" BLOQUEADA)" <<SQL
+CALL tarjetas.desbloquear_tarjeta($T1, 'x', 'pruebas', @h);
+SQL
+CLIENTE=seguridad_ caso X89 'Sin actor no se desbloquea: la operación es atómica (I2)' "$(estado "$T1" BLOQUEADA)" <<SQL
+CALL tarjetas.desbloquear_tarjeta($T1, 'x', NULL, @h);
+SQL
+CLIENTE=seguridad_ caso X90 'bna_seguridad desbloquea, con historial, aviso y auditoría (I2)' \
+  "SELECT (SELECT estado_tarjeta FROM tarjetas.tarjeta WHERE id_tarjeta = $T1) = 'ACTIVA'
+      AND (SELECT origen FROM tarjetas.historial_estado_tarjeta WHERE id_tarjeta = $T1 ORDER BY id_historial DESC LIMIT 1) = 'SEGURIDAD'
+      AND (SELECT COUNT(*) FROM tarjetas.evento_salida WHERE id_tarjeta = $T1 AND carga_json->>'\$.estado_nuevo' = 'ACTIVA') = 1
+      AND (SELECT COUNT(*) FROM core.evento_auditoria WHERE accion = 'DESBLOQUEAR_TARJETA' AND id_entidad = BIN_TO_UUID($T1)) = 1" <<SQL
+CALL tarjetas.desbloquear_tarjeta($T1, 'revisado', 'pruebas', @h);
+SQL
+CLIENTE=seguridad_ caso X91 'bna_seguridad también libera una tarjeta RETENIDA (I2)' "$(estado "$T2" ACTIVA)" <<SQL
+CALL tarjetas.desbloquear_tarjeta($T2, 'revisado', 'pruebas', @h);
+SQL
+CLIENTE=seguridad_ caso X92 'desbloquear_tarjeta no activa una tarjeta que no está bloqueada (I2)' \
+  "$(estado "$T3" PENDIENTE_ACTIVACION)" <<SQL
+CALL tarjetas.desbloquear_tarjeta($T3, 'x', 'pruebas', @h);
+SQL
+CLIENTE=seguridad_ caso X93 'bna_seguridad no ejecuta los otros procedimientos (I2)' \
+  "SELECT COUNT(*) = 0 FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'AC-X93'" <<'SQL'
+CALL cuentas.abrir_cuenta('AC-X93', '00000000000000000093', 'PEN', 'INDIVIDUAL', 'AQP01', JSON_ARRAY('C001'), 'pruebas');
+SQL

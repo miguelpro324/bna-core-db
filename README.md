@@ -92,7 +92,7 @@ configuración de `conf/mysql/bna.cnf` y las tablas de zonas horarias
 
 `conf/mysql/crear_usuarios.sh` crea `bna_app_user` y `bna_admin_user` al
 inicializar un volumen vacío, con las contraseñas de `CORE_DB_APP_PASSWORD` y
-`CORE_DB_ADMIN_PASSWORD`. No hay contraseñas en el repositorio. El contenedor se
+`CORE_DB_ADMIN_PASSWORD`, y `bna_seguridad_user` con `CORE_DB_SEGURIDAD_PASSWORD`. No hay contraseñas en el repositorio. El contenedor se
 arranca con `sql/bna_core.sql`, `sql/bna_extension.sql` y ese script en
 `/docker-entrypoint-initdb.d/`, en ese orden, y con `bna.cnf` copiado a `/etc/mysql/conf.d/` con permisos 644, porque
 MySQL ignora un archivo de configuración escribible por todos.
@@ -113,7 +113,10 @@ rama `main`, y es una divergencia de esta rama.
 Cada procedimiento público es atómico aunque se llame sin una transacción, registra
 su propio evento de auditoría y exige un canal. La API se conecta con el rol `bna_api`,
 que solo lee y ejecuta esos procedimientos; `bna_app` conserva sus permisos para los
-demás módulos.
+demás módulos. `cambiar_estado_tarjeta` rechaza todo desbloqueo:
+`tarjetas.desbloquear_tarjeta` solo la ejecuta el rol `bna_seguridad`
+(`bna_seguridad_user`, con la clave de `CORE_DB_SEGURIDAD_PASSWORD`). `bna_admin` y
+`bna_app` siguen pudiendo saltarse esa restricción con sus permisos directos.
 
 `pruebas/mysql/run_tests.sh` ejecuta toda la suite con la extensión cargada. Sus
 pruebas (ID `X`) quedan en `resultados/mysql/resultado-extension.tsv`, fuera de la
