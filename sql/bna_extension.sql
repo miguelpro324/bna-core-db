@@ -152,10 +152,9 @@ INSERT INTO core.equivalencia_catalogo (catalogo, valor_api, valor_bd) VALUES
     ('estado_tarjeta', 'ANULADA', 'CANCELADA'),
     ('origen_cambio', 'BANCO', 'OPERADOR');
 
--- Datos de referencia que los procedimientos y la API necesitan.
+-- Cuentas contables de los asientos de cuentas.aplicar_movimiento.
 INSERT IGNORE INTO core.cuenta_contable VALUES
     ('1101', 'Caja', 'DEUDORA', NULL), ('2101', 'Depósitos de ahorro', 'ACREEDORA', NULL);
-INSERT IGNORE INTO tarjetas.bin_tarjeta VALUES ('004499', 'FISICA', 'Débito BNA física');
 
 -- ---------------------------------------------------------------------
 -- 8. Procedimientos y reglas

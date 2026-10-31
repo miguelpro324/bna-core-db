@@ -1,6 +1,6 @@
 -- Pruebas de sql/bna_extension.sql. Las ejecuta bna_app_user y son solo de la
 -- rama mysql. Requiere arnes.sql, datos.sql y los periodos de 2001 y 2002 que
--- carga run_extension.sh.
+-- carga run_tests.sh.
 SET @u1 = UUID_TO_BIN('11111111-1111-4111-8111-111111111111');
 SET @h = REPEAT('a', 64);
 SET @h2 = REPEAT('b', 64);

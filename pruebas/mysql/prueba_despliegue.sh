@@ -5,6 +5,9 @@
 # con permisos 666, como puede verse un montaje desde Windows: MySQL ignora un
 # archivo de configuración escribible por todos, y el arranque debe evitarlo.
 #
+# También monta sql/bna_datos_dev.sql, como docker-compose.coredb.dev.yml, y
+# comprueba que una base nueva puede abrir una cuenta y hacer un depósito.
+#
 # Uso: pruebas/mysql/prueba_despliegue.sh
 set -euo pipefail
 
@@ -32,6 +35,7 @@ docker run -d --name "$C" \
   -v "$ROOT/sql/bna_core.sql:/docker-entrypoint-initdb.d/01_bna_core.sql:ro" \
   -v "$ROOT/sql/bna_extension.sql:/docker-entrypoint-initdb.d/02_bna_extension.sql:ro" \
   -v "$ROOT/conf/mysql/crear_usuarios.sh:/docker-entrypoint-initdb.d/03_crear_usuarios.sh:ro" \
+  -v "$ROOT/sql/bna_datos_dev.sql:/docker-entrypoint-initdb.d/04_bna_datos_dev.sql:ro" \
   --entrypoint sh "$MYSQL_IMAGE" \
   -c 'install -m 644 /bna/bna.cnf /etc/mysql/conf.d/bna.cnf && exec docker-entrypoint.sh mysqld' >/dev/null
 
@@ -62,6 +66,15 @@ comprobar 'bna_app_user no borra' 'denied' \
 comprobar 'bna_admin_user con su rol' 'bna_admin' \
   "$(docker exec -e MYSQL_PWD="$PW_ADMIN" "$C" mysql -ubna_admin_user -h127.0.0.1 --protocol=TCP -N \
      -e 'SELECT CURRENT_ROLE()' 2>&1 || true)"
+
+comprobar 'depósito con los datos de desarrollo' '^100.00$' "$(app 2>&1 <<'SQL' || true
+START TRANSACTION;
+CALL cuentas.abrir_cuenta('CTA-DESPLIEGUE', '00000000000000000001', 'PEN', 'INDIVIDUAL', 'AQP01', JSON_ARRAY('DEV001'));
+CALL cuentas.registrar_movimiento('CTA-DESPLIEGUE', 'DEPOSITO', 100, 'Prueba', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, @m, @r);
+COMMIT;
+SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-DESPLIEGUE';
+SQL
+)"
 
 if [ "$fallas" -ne 0 ]; then
   docker logs "$C" 2>&1 | tail -20

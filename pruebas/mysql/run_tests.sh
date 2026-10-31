@@ -9,6 +9,9 @@
 #   C01 a C03  la concurrencia, con dos sesiones;
 #   G01 a G05  las brechas conocidas: cada prueba muestra que la brecha
 #              existe (si alguna dejara de existir, la prueba falla).
+# Todo corre con sql/bna_extension.sql cargado. Sus pruebas (ID X) quedan aparte,
+# en resultados/mysql/resultado-extension.tsv, porque la extensión está fuera
+# del modelo y de la matriz.
 # Salidas en bruto y metadatos: resultados/mysql/; tablas del informe:
 # informe/mysql-pruebas-*.tex.
 #
@@ -73,8 +76,13 @@ registrar L02 bna_app_user Carga 'Configuración del servidor' \
   'BNA-CONFIGURACION: correcta' "$(echo "$l02" | tail -1)" "$ok"
 
 root_ < "$HERE/datos.sql"
+root_ < "$ROOT/sql/bna_extension.sql"
+root_ -e "INSERT INTO core.periodo_contable VALUES (2001, 1, '2001-01-01', '2001-01-31', 'CERRADO'),
+                                                   (2002, 1, '2002-01-01', '2002-01-31', 'ABIERTO')"
 app_ < "$HERE/pruebas.sql" > "$OUT/pruebas-app.log" 2>&1
+app_ < "$HERE/pruebas_extension.sql" > "$OUT/pruebas-extension-app.log" 2>&1
 admin_ < "$HERE/pruebas_admin.sql" > "$OUT/pruebas-admin.log" 2>&1
+admin_ < "$HERE/pruebas_extension_admin.sql" > "$OUT/pruebas-extension-admin.log" 2>&1
 
 # M20b: el asiento descuadrado se rechaza aunque la sesión confirme después.
 app_ --force > "$OUT/M20b.log" 2>&1 <<'SQL' || true
@@ -223,12 +231,20 @@ SQL
 
 root_ -N -B -e "SELECT id, usuario, grupo, referencia, descripcion, mecanismo, esperado, obtenido,
                        CASE WHEN ok IS NULL THEN 'N/A' WHEN ok THEN 'pasa' ELSE 'falla' END
-                  FROM prueba.resultado ORDER BY n" > "$OUT/resultado.tsv"
+                  FROM prueba.resultado WHERE id NOT LIKE 'X%' ORDER BY n" > "$OUT/resultado.tsv"
+root_ -N -B -e "SELECT id, usuario, descripcion, CASE WHEN ok THEN 'pasa' ELSE 'falla' END
+                  FROM prueba.resultado WHERE id LIKE 'X%' ORDER BY n" > "$OUT/resultado-extension.tsv"
 modo="$(root_ -N -e "SELECT @@GLOBAL.sql_mode")"
 zona="$(root_ -N -e "SELECT @@GLOBAL.time_zone")"
 coll="$(root_ -N -e "SELECT DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'core'")"
 ev="$(root_ -N -e "SELECT @@GLOBAL.event_scheduler")"
 iso="$(root_ -N -e "SELECT @@GLOBAL.transaction_isolation")"
 metadatos "$OUT/metadatos.txt" "ddl=$DDL_ORIGEN" "mysql=$version" "imagen=$MYSQL_IMAGE" \
-  "sql_mode=$modo" "time_zone=$zona" "collation=$coll" "event_scheduler=$ev" "aislamiento=$iso"
+  "sql_mode=$modo" "time_zone=$zona" "collation=$coll" "event_scheduler=$ev" "aislamiento=$iso" \
+  "extension=sql/bna_extension.sql"
 python3 -I "$HERE/combinar.py" "$OUT" "$ROOT/informe" "$version"
+if grep -q 'falla$' "$OUT/resultado-extension.tsv"; then
+  echo "   la extensión tiene pruebas que fallan; ver $OUT/resultado-extension.tsv"
+  exit 1
+fi
+echo "   Extensión: $(grep -c 'pasa$' "$OUT/resultado-extension.tsv") pasan"

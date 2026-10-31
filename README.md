@@ -110,9 +110,13 @@ escritura. Está escrito a mano y se carga después de `sql/bna_core.sql`. **Que
 fuera del modelo normalizado:** no está en `modelo_bna.py`, ni en el MER, ni en la
 rama `main`, y es una divergencia de esta rama.
 
-`pruebas/mysql/run_extension.sh` carga las dos cosas y ejecuta las pruebas SQL de la
-base y las de la extensión (ID `X`). No escribe en `resultados/`, porque la extensión
-no entra en la matriz.
+`pruebas/mysql/run_tests.sh` ejecuta toda la suite con la extensión cargada. Sus
+pruebas (ID `X`) quedan en `resultados/mysql/resultado-extension.tsv`, fuera de la
+matriz.
+
+`sql/bna_datos_dev.sql` es **solo para desarrollo**: periodo abierto del mes en curso,
+BIN 004499, una agencia, un terminal por canal y un cliente, para que una base nueva
+pueda hacer un depósito. No va en producción.
 
 ## Brechas conocidas
 
