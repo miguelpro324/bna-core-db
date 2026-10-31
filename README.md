@@ -88,6 +88,19 @@ Para cargar la base fuera de las pruebas, el servidor debe tener la
 configuración de `conf/mysql/bna.cnf` y las tablas de zonas horarias
 (`mysql_tzinfo_to_sql`); `CALL core.verificar_configuracion()` lo comprueba.
 
+## Despliegue
+
+`conf/mysql/crear_usuarios.sh` crea `bna_app_user` y `bna_admin_user` al
+inicializar un volumen vacío, con las contraseñas de `CORE_DB_APP_PASSWORD` y
+`CORE_DB_ADMIN_PASSWORD`. No hay contraseñas en el repositorio. El contenedor se
+arranca con `sql/bna_core.sql` y ese script en `/docker-entrypoint-initdb.d/`, en ese
+orden, y con `bna.cnf` copiado a `/etc/mysql/conf.d/` con permisos 644, porque
+MySQL ignora un archivo de configuración escribible por todos.
+
+`pruebas/mysql/prueba_despliegue.sh` comprueba ese arranque.
+
+Las versiones publicadas son etiquetas inmutables `bd-vX.Y-mysql`.
+
 ## Brechas conocidas
 
 Lo que MySQL no puede hacer cumplir a la base. Cada brecha tiene una prueba
