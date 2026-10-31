@@ -118,3 +118,16 @@ X102	bna_api_user	desbloquear_tarjeta deshace solo lo suyo dentro de una transac
 X93	bna_api_user	bna_seguridad no ejecuta los otros procedimientos (I2)	pasa
 X107	bna_api_user	El deadlock en registrar_asiento llega al cliente en autocommit (N1)	pasa
 X108	bna_api_user	El deadlock en registrar_asiento llega al cliente en su transacción (N1)	pasa
+X140	bna_api_user	El deadlock de una transferencia llega al cliente en autocommit (R3)	pasa
+X141	bna_api_user	El deadlock de una transferencia llega al cliente en su transacción (R3)	pasa
+X142	bna_api_user	crear_usuario conserva 1213 en la transacción de quien llama (R3)	pasa
+X143	bna_api_user	asignar_rol conserva 1213 en la transacción de quien llama (R3)	pasa
+X144	bna_api_user	migrar_hash_usuario conserva 1213 en la transacción de quien llama (R3)	pasa
+X145	bna_api_user	abrir_cuenta conserva 1213 en la transacción de quien llama (R3)	pasa
+X146	bna_api_user	emitir_tarjeta conserva 1213 en la transacción de quien llama (R3)	pasa
+X147	bna_api_user	cambiar_estado_tarjeta conserva 1213 en la transacción de quien llama (R3)	pasa
+X148	bna_api_user	desbloquear_tarjeta conserva 1213 en la transacción de quien llama (R3)	pasa
+X136	bna_api_user	bna_api lee exactamente los objetos de lecturas_api.txt (R4)	pasa
+X137	root	bna_api no tiene SELECT global, por base, por columna ni roles heredados (R4)	pasa
+X138	bna_api_user	Un depósito rechaza una llave sin operación registrada	pasa
+X139	bna_api_user	Una transferencia rechaza una llave sin operación registrada	pasa
