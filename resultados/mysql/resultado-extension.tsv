@@ -1,0 +1,26 @@
+X01	bna_app_user	hash_password admite 255 caracteres	pasa
+X02	bna_app_user	bna_app no escribe directamente usuarios	pasa
+X03	bna_app_user	username es único	pasa
+X04	bna_app_user	La migración de hash es condicional y deja un solo evento	pasa
+X05	bna_app_user	bna_app no escribe productos	pasa
+X06	bna_app_user	bna_app no escribe tipos de cambio	pasa
+X07	bna_app_user	No se registra un asiento en un periodo cerrado	pasa
+X08	bna_app_user	Un periodo abierto admite el asiento	pasa
+X09	bna_app_user	El depósito actualiza el saldo y guarda la llave	pasa
+X10	bna_app_user	Repetir la llave devuelve la operación sin aplicarla	pasa
+X11	bna_app_user	La misma llave con otros parámetros se rechaza	pasa
+X12	bna_app_user	El retiro sin saldo sigue rechazándose por el trigger	pasa
+X13	bna_app_user	La transferencia mueve el saldo con un asiento por tramo	pasa
+X14	bna_app_user	No se transfiere entre monedas distintas	pasa
+X15	bna_app_user	No se transfiere a la misma cuenta	pasa
+X16	bna_app_user	El evento general se registra por el procedimiento	pasa
+X17	bna_app_user	bna_app no modifica la bitácora	pasa
+X18	bna_app_user	Una mancomunada exige sus titulares	pasa
+X19	bna_app_user	La cuenta se abre con su titular	pasa
+X20	bna_app_user	La tarjeta se emite y cambia de estado por el historial	pasa
+X21	bna_app_user	Un valor de la API con equivalente exacto se traduce	pasa
+X30	bna_admin_user	El empleado exige una agencia existente	pasa
+X31	bna_admin_user	La tasa debe ser positiva	pasa
+X32	bna_admin_user	El plazo mínimo no supera al máximo	pasa
+X33	bna_admin_user	La bitácora rechaza UPDATE aun con privilegios	pasa
+X34	bna_admin_user	La bitácora rechaza DELETE aun con privilegios	pasa
