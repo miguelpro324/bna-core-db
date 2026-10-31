@@ -112,11 +112,25 @@ rama `main`, y es una divergencia de esta rama.
 
 Cada procedimiento público es atómico aunque se llame sin una transacción, registra
 su propio evento de auditoría y exige un canal. La API se conecta con el rol `bna_api`,
-que solo lee y ejecuta esos procedimientos; `bna_app` conserva sus permisos para los
-demás módulos. `cambiar_estado_tarjeta` rechaza todo desbloqueo:
+que ejecuta esos procedimientos y lee solo las tablas que usa, con la tarjeta por
+`tarjetas.v_tarjeta_api`, sin `pan_token`; no lee credenciales de tarjeta ni datos
+biométricos. Ninguna cuenta desplegada tiene `bna_app`, que conserva sus permisos para
+las pruebas de la matriz y para los módulos que aún no tengan procedimientos.
+`cambiar_estado_tarjeta` rechaza todo desbloqueo y el origen `SEGURIDAD`:
 `tarjetas.desbloquear_tarjeta` solo la ejecuta el rol `bna_seguridad`
 (`bna_seguridad_user`, con la clave de `CORE_DB_SEGURIDAD_PASSWORD`). `bna_admin` y
 `bna_app` siguen pudiendo saltarse esa restricción con sus permisos directos.
+
+Un débito por un canal y una moneda sin fila en `core.limite_canal` se rechaza con
+`RN-BD-002` (`ERR-TAR-006` en una autorización):
+
+| Canal | PEN | USD | Fuente |
+|---|---|---|---|
+| ATM | 1500 | 500 | Cuentas, INT-04, p. 41; Tarjetas, C05, p. 27 |
+| HB | 10000 | Sin fila: se rechaza | Cuentas, INT-07, p. 41; ninguna para USD |
+| BD | 500 | No opera (`habilitado` falso) | Cuentas, INT-09, p. 41; Tarjetas, tabla 4 |
+| VEN | Sin tope (monto nulo) | Sin tope (monto nulo) | Tarjetas, tabla 4: «NULL significa sin límite automático (ventanilla)» |
+| AGE | Sin fila: se rechaza | Sin fila: se rechaza | Ninguna |
 
 `pruebas/mysql/run_tests.sh` ejecuta toda la suite con la extensión cargada. Sus
 pruebas (ID `X`) quedan en `resultados/mysql/resultado-extension.tsv`, fuera de la

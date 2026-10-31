@@ -30,3 +30,13 @@ CALL prueba.rechaza('X45', 'Extensión', 'Tarjetas', 'No se emite tarjeta sobre 
   JSON_ARRAY("UPDATE cuentas.cuenta_ahorro SET estado_cuenta = 'CANCELADA' WHERE num_cuenta = 'CTA-PEN-1'",
              "CALL tarjetas.emitir_tarjeta(UUID_TO_BIN('44444444-4444-4444-8444-444444444445'), 'tok-x45', '455788', '1234', '2026-01-01', '2030-01-01', 'C001', 'CTA-PEN-1', 'pruebas')"),
   'BNA-TARJETA', 'procedimiento');
+
+CALL prueba.rechaza('X69', 'Extensión', 'Canal', 'Sin la fila explícita, ventanilla también se rechaza (C2)',
+  JSON_ARRAY("DELETE FROM core.limite_canal WHERE id_canal = 'VEN' AND moneda = 'PEN'",
+             "CALL cuentas.registrar_movimiento('CTA-PEN-2', 'RETIRO', 1, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  'RN-BD-002', 'trigger');
+
+CALL prueba.rechaza('X56', 'Extensión', 'Canal', 'Un canal inactivo se rechaza (I7)',
+  JSON_ARRAY("UPDATE core.canal SET activo = FALSE WHERE id_canal = 'VEN'",
+             "CALL cuentas.registrar_movimiento('CTA-PEN-2', 'DEPOSITO', 1, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  'BNA-CANAL', 'procedimiento');

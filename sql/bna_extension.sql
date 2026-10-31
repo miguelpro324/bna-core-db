@@ -7,13 +7,19 @@
 -- deliberada de la versión MySQL.
 -- DECISIÓN: nadie escribe directamente en estas tablas con bna_app ni bna_api; se
 --   hace por los procedimientos de este archivo, que corren como bna_owner.
--- DECISIÓN: la API se conecta con el rol bna_api, que solo lee y ejecuta los
---   procedimientos. bna_app conserva sus permisos para los demás módulos.
--- DECISIÓN: desbloquear una tarjeta solo es posible con el rol bna_seguridad. El
---   origen no lo declara quien llama: desbloquear_tarjeta siempre registra SEGURIDAD
---   y cambiar_estado_tarjeta rechaza todo desbloqueo. bna_admin conserva el
---   privilegio porque tiene ALL sobre tarjetas.*, y bna_app puede escribir el
---   historial directamente: la restricción cubre a bna_api y a bna_seguridad.
+-- DECISIÓN: la API se conecta con el rol bna_api, que lee solo las tablas que usa y
+--   ejecuta los procedimientos; no lee credenciales de tarjeta ni datos biométricos.
+--   Ninguna cuenta desplegada tiene bna_app, que conserva sus permisos para los módulos
+--   que aún no tienen procedimientos y para las pruebas de la matriz.
+-- DECISIÓN: desbloquear una tarjeta solo es posible con el rol bna_seguridad:
+--   desbloquear_tarjeta siempre registra SEGURIDAD, y cambiar_estado_tarjeta rechaza
+--   todo desbloqueo y el origen SEGURIDAD. Los demás orígenes de cambiar_estado_tarjeta
+--   los declara quien llama. bna_admin conserva el privilegio porque tiene ALL sobre
+--   tarjetas.*, y bna_app puede escribir el historial directamente: la restricción
+--   cubre a bna_api y a bna_seguridad.
+-- DECISIÓN: el tope de cada canal y moneda es una fila de core.limite_canal, y sin
+--   fila el débito se rechaza. Ventanilla: fila con monto nulo, «sin límite automático»
+--   (Tarjetas, tabla 4). Sin fuente, y por tanto sin fila: AGE en PEN y USD, HB en USD.
 -- DECISIÓN: cada procedimiento público es atómico aunque se llame sin una
 --   transacción, y registra su propio evento de auditoría, de modo que la
 --   operación y el evento se confirman o se deshacen juntos.
@@ -232,8 +238,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         INSERT INTO core.usuario_sistema (id_usuario, username, nombre, rol, hash_password, algoritmo_hash,
@@ -261,8 +270,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         SELECT rol INTO v_anterior FROM core.usuario_sistema WHERE id_usuario = p_id FOR UPDATE;
@@ -293,8 +305,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         UPDATE core.usuario_sistema
@@ -406,8 +421,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         IF p_tipo IS NULL OR p_tipo NOT IN ('DEPOSITO', 'RETIRO') THEN
@@ -450,8 +468,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         IF p_origen IS NULL OR p_destino IS NULL THEN
@@ -508,8 +529,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         SELECT min_titulares INTO v_minimo FROM cuentas.regimen_cuenta WHERE cod_regimen = p_regimen;
@@ -566,8 +590,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         IF NOT EXISTS (SELECT 1 FROM cuentas.titularidad
@@ -605,8 +632,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         SELECT estado_tarjeta INTO v_anterior FROM tarjetas.tarjeta WHERE id_tarjeta = p_id FOR UPDATE;
@@ -615,6 +645,9 @@ BEGIN
         END IF;
         IF v_anterior IN ('BLOQUEADA', 'RETENIDA') AND p_estado = 'ACTIVA' THEN
             CALL core.fallar('BNA-DESBLOQUEO: el desbloqueo solo lo hace el módulo de Seguridad');
+        END IF;
+        IF p_origen = 'SEGURIDAD' THEN
+            CALL core.fallar('BNA-ORIGEN: el origen SEGURIDAD solo lo registra el módulo de Seguridad');
         END IF;
         INSERT INTO tarjetas.historial_estado_tarjeta (estado_nuevo, motivo, origen, id_tarjeta)
         VALUES (p_estado, p_motivo, p_origen, p_id);
@@ -642,8 +675,11 @@ BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
-            DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-            IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+            END;
             RESIGNAL;
         END;
         SELECT estado_tarjeta INTO v_anterior FROM tarjetas.tarjeta WHERE id_tarjeta = p_id FOR UPDATE;
@@ -661,13 +697,29 @@ END //
 
 DELIMITER ;
 
+-- ---------------------------------------------------------------------
+-- 9. Lecturas de la API
+-- ---------------------------------------------------------------------
+-- La tarjeta sin pan_token: la API no necesita el token (PCI-DSS).
+CREATE DEFINER = 'bna_owner'@'%' SQL SECURITY DEFINER VIEW tarjetas.v_tarjeta_api AS
+SELECT id_tarjeta, bin, ultimos4, fecha_emision, fecha_vencimiento, estado_tarjeta, cod_cliente
+  FROM tarjetas.tarjeta;
+
 CREATE ROLE IF NOT EXISTS bna_api, bna_seguridad;
 GRANT EXECUTE ON PROCEDURE tarjetas.desbloquear_tarjeta TO bna_seguridad;
-GRANT SELECT ON core.* TO bna_api;
-GRANT SELECT ON clientes.* TO bna_api;
-GRANT SELECT ON cuentas.* TO bna_api;
-GRANT SELECT ON tarjetas.* TO bna_api;
-GRANT SELECT ON creditos.* TO bna_api;
+-- Solo lo que lee COREDB; un endpoint nuevo agrega aquí lo que necesite. El hash de
+-- usuario_sistema lo exige la autenticación.
+GRANT SELECT ON core.usuario_sistema TO bna_api;
+GRANT SELECT ON core.moneda TO bna_api;
+GRANT SELECT ON core.agencia TO bna_api;
+GRANT SELECT ON core.producto_ahorro TO bna_api;
+GRANT SELECT ON core.producto_credito TO bna_api;
+GRANT SELECT ON core.tipo_cambio TO bna_api;
+GRANT SELECT ON core.equivalencia_catalogo TO bna_api;
+GRANT SELECT ON core.periodo_contable TO bna_api;
+GRANT SELECT ON cuentas.cuenta_ahorro TO bna_api;
+GRANT SELECT ON cuentas.idempotencia_movimiento TO bna_api;
+GRANT SELECT ON tarjetas.v_tarjeta_api TO bna_api;
 GRANT EXECUTE ON PROCEDURE core.verificar_configuracion TO bna_api;
 GRANT EXECUTE ON FUNCTION core.fn_fecha_negocio TO bna_api;
 GRANT EXECUTE ON PROCEDURE core.crear_usuario TO bna_api, bna_app, bna_admin;

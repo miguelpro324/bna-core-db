@@ -185,3 +185,40 @@ CALL prueba.rechaza('X58', 'Extensión', 'Movimientos', 'Una llave de depósito 
 CALL prueba.verifica('X59', 'Extensión', 'Periodos', 'La fecha de negocio se corta a medianoche de Arequipa (I13)',
   JSON_ARRAY("SET @f = core.fn_fecha_negocio('2026-01-01 04:59:59')", "SET @g = core.fn_fecha_negocio('2026-01-01 05:00:00')"),
   "SELECT @f = '2025-12-31' AND @g = '2026-01-01'", '2025-12-31 y 2026-01-01', "SELECT CONCAT(@f, ' y ', @g)", 'procedimiento');
+
+-- C2 reabierto: un débito sin fila en core.limite_canal se rechaza.
+CALL prueba.rechaza('X60', 'Extensión', 'Canal', 'Un retiro por AGE, sin tope en las fuentes, se rechaza (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 20000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-PEN-1', 'RETIRO', 2000, 'g', 'AGE', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  'RN-BD-002', 'trigger');
+
+CALL prueba.rechaza('X61', 'Extensión', 'Canal', 'Una transferencia por AGE se rechaza (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 20000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_transferencia('CTA-PEN-1', 'CTA-PEN-2', 15000, 'g', 'AGE', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @d, @c, @r)"),
+  'RN-BD-002', 'trigger');
+
+CALL prueba.rechaza('X62', 'Extensión', 'Canal', 'Un retiro en USD por HB, sin tope en las fuentes, se rechaza (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-USD-1', 'DEPOSITO', 5000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-USD-1', 'RETIRO', 1000, 'g', 'HB', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  'RN-BD-002', 'trigger');
+
+CALL prueba.rechaza('X63', 'Extensión', 'Canal', 'Un retiro en USD por AGE se rechaza (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-USD-1', 'DEPOSITO', 5000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-USD-1', 'RETIRO', 1000, 'g', 'AGE', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  'RN-BD-002', 'trigger');
+
+CALL prueba.verifica('X64', 'Extensión', 'Canal', 'Ventanilla no tiene tope automático: retiro de 2000 (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 20000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-PEN-1', 'RETIRO', 2000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  "SELECT @m IS NOT NULL AND @r = 0", 'retiro aplicado', "SELECT @r", 'trigger');
+
+CALL prueba.verifica('X65', 'Extensión', 'Canal', 'Ventanilla no tiene tope automático: transferencia de 15000 (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 20000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_transferencia('CTA-PEN-1', 'CTA-PEN-2', 15000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @d, @c, @r)"),
+  "SELECT @d IS NOT NULL AND @r = 0", 'transferencia aplicada', "SELECT @r", 'trigger');
+
+CALL prueba.verifica('X66', 'Extensión', 'Canal', 'Ventanilla opera en USD sin tope automático (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-USD-1', 'DEPOSITO', 5000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)", "CALL cuentas.registrar_movimiento('CTA-USD-1', 'RETIRO', 1000, 'g', 'VEN', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  "SELECT @m IS NOT NULL AND @r = 0", 'retiro aplicado', "SELECT @r", 'trigger');
+
+CALL prueba.verifica('X67', 'Extensión', 'Canal', 'Un crédito por AGE no depende del tope (C2)',
+  JSON_ARRAY("CALL cuentas.registrar_movimiento('CTA-PEN-1', 'DEPOSITO', 100, 'g', 'AGE', UUID_TO_BIN(UUID()), NULL, NULL, 'pruebas', @m, @r)"),
+  "SELECT @m IS NOT NULL", 'depósito aplicado', "SELECT @r", 'trigger');
+
+CALL prueba.rechaza('X68', 'Extensión', 'Canal', 'Una autorización por HB en USD se rechaza como en el movimiento (C2)',
+  JSON_ARRAY("INSERT INTO tarjetas.autorizacion (tipo_operacion, monto, estado_autorizacion, id_canal, id_tarjeta, num_cuenta) VALUES ('RETIRO', 10, 'AUTORIZADA', 'HB', UUID_TO_BIN('a0000000-0000-4000-8000-000000000001'), 'CTA-USD-1')"),
+  'ERR-TAR-006.*no opera', 'trigger');

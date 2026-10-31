@@ -22,7 +22,7 @@ PW_APP="app'con\\raros-$RANDOM"
 PW_ADMIN="admin-$RANDOM"
 PW_SEGURIDAD="seguridad-$RANDOM"
 
-cleanup() { docker rm -f "$C" >/dev/null 2>&1 || true; rm -rf "$TMP"; }
+cleanup() { docker rm -fv "$C" >/dev/null 2>&1 || true; rm -rf "$TMP"; }
 trap cleanup EXIT
 
 cp "$ROOT/conf/mysql/bna.cnf" "$TMP/bna.cnf"
@@ -71,6 +71,18 @@ for tabla in cuenta_ahorro titularidad movimiento; do
 done
 comprobar 'bna_app_user no inserta en tarjetas.historial_estado_tarjeta' 'denied' \
   "$(app -e "INSERT INTO tarjetas.historial_estado_tarjeta () VALUES ()" 2>&1 || true)"
+for tabla in tarjeta tarjeta_cuenta; do
+  comprobar "bna_app_user no inserta en tarjetas.$tabla" 'denied' \
+    "$(app -e "INSERT INTO tarjetas.$tabla () VALUES ()" 2>&1 || true)"
+done
+for tabla in tarjetas.credencial tarjetas.matriz_token tarjetas.matriz_coordenada tarjetas.token_pago \
+             tarjetas.tarjeta clientes.biometria_cliente clientes.codigo_verificacion; do
+  comprobar "bna_app_user no lee $tabla" 'denied' "$(app -e "SELECT 1 FROM $tabla LIMIT 1" 2>&1 || true)"
+done
+comprobar 'bna_app_user lee la vista de tarjetas' '^0$' "$(app -e 'SELECT COUNT(*) FROM tarjetas.v_tarjeta_api' 2>&1 || true)"
+comprobar 'ninguna cuenta desplegada tiene bna_app' '^0$' \
+  "$(docker exec -e MYSQL_PWD="$PW_ROOT" "$C" mysql -uroot -N \
+     -e "SELECT COUNT(*) FROM mysql.role_edges WHERE FROM_USER = 'bna_app' AND TO_USER LIKE 'bna%user'" 2>&1 || true)"
 comprobar 'bna_admin_user con su rol' 'bna_admin' \
   "$(docker exec -e MYSQL_PWD="$PW_ADMIN" "$C" mysql -ubna_admin_user -h127.0.0.1 --protocol=TCP -N \
      -e 'SELECT CURRENT_ROLE()' 2>&1 || true)"

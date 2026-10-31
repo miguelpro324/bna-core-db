@@ -7,6 +7,7 @@
 #   M20b, M20c el asiento descuadrado en un COMMIT real y el que falla fuera
 #              de una transacción;
 #   C01 a C03  la concurrencia, con dos sesiones;
+#   pruebas_extension_api.sql con bna_api_user, el rol de la API desplegada;
 #   G01 a G05  las brechas conocidas: cada prueba muestra que la brecha
 #              existe (si alguna dejara de existir, la prueba falla).
 # Todo corre con sql/bna_extension.sql cargado. Sus pruebas (ID X) quedan aparte,
@@ -27,10 +28,10 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 C="bna-pruebas-mysql-$$"
 
-cleanup() { docker rm -f "$C" >/dev/null 2>&1 || true; }
+cleanup() { docker rm -fv "$C" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-docker run -d --rm --name "$C" -e MYSQL_ALLOW_EMPTY_PASSWORD=1 \
+docker run -d --name "$C" -e MYSQL_ALLOW_EMPTY_PASSWORD=1 \
   -v "$ROOT/conf/mysql/bna.cnf:/etc/mysql/conf.d/bna.cnf:ro" "$MYSQL_IMAGE" >/dev/null
 # El servidor definitivo es el que escucha por TCP (el de inicialización no).
 for _ in $(seq 1 90); do
@@ -40,6 +41,7 @@ done
 
 root_() { docker exec -i "$C" mysql -uroot --default-character-set=utf8mb4 "$@"; }
 app_() { docker exec -i -e MYSQL_PWD=app "$C" mysql -ubna_app_user --default-character-set=utf8mb4 "$@"; }
+api_() { docker exec -i -e MYSQL_PWD=api "$C" mysql -ubna_api_user --default-character-set=utf8mb4 "$@"; }
 admin_() { docker exec -i -e MYSQL_PWD=admin "$C" mysql -ubna_admin_user --default-character-set=utf8mb4 "$@"; }
 sql_str() { printf "'%s'" "$(printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e "s/'/''/g")"; }
 # registrar ID USUARIO GRUPO REFERENCIA DESCRIPCION MECANISMO ESPERADO OBTENIDO OK(1|0)
@@ -79,8 +81,12 @@ root_ < "$HERE/datos.sql"
 root_ < "$ROOT/sql/bna_extension.sql"
 root_ -e "INSERT INTO core.periodo_contable VALUES (2001, 1, '2001-01-01', '2001-01-31', 'CERRADO'),
                                                    (2002, 1, '2002-01-01', '2002-01-31', 'ABIERTO')"
+root_ -e "CREATE USER 'bna_api_user'@'%' IDENTIFIED BY 'api' DEFAULT ROLE bna_api;
+          GRANT EXECUTE ON prueba.* TO 'bna_api_user'@'%';
+          GRANT INSERT ON prueba.resultado TO 'bna_api_user'@'%'"
 app_ < "$HERE/pruebas.sql" > "$OUT/pruebas-app.log" 2>&1
 app_ < "$HERE/pruebas_extension.sql" > "$OUT/pruebas-extension-app.log" 2>&1
+api_ < "$HERE/pruebas_extension_api.sql" > "$OUT/pruebas-extension-api.log" 2>&1
 admin_ < "$HERE/pruebas_admin.sql" > "$OUT/pruebas-admin.log" 2>&1
 admin_ < "$HERE/pruebas_extension_admin.sql" > "$OUT/pruebas-extension-admin.log" 2>&1
 

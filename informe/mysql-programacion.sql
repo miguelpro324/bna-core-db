@@ -171,11 +171,15 @@ BEGIN
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
-            IF v_propia THEN
-                ROLLBACK;
-            ELSE
-                ROLLBACK TO SAVEPOINT bna_asiento;
-            END IF;
+            -- Un deadlock ya revirtió toda la transacción y el savepoint no existe.
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
+                IF v_propia THEN
+                    ROLLBACK;
+                ELSE
+                    ROLLBACK TO SAVEPOINT bna_asiento;
+                END IF;
+            END;
             RESIGNAL;
         END;
         INSERT INTO core.asiento_contable (id_asiento, numero_asiento, fecha_contable, fecha_valor, glosa, moneda,
@@ -288,10 +292,12 @@ FOR EACH ROW BEGIN
             IF NEW.id_canal IS NOT NULL THEN
                 SELECT TRUE, habilitado, monto_maximo_diario INTO v_hay_limite, v_habilitado, v_tope
                   FROM core.limite_canal WHERE id_canal = NEW.id_canal AND moneda = v_moneda_cuenta;
-                IF v_hay_limite AND NOT v_habilitado THEN
+                -- Sin fila en core.limite_canal el canal no opera en esa moneda; «sin
+                -- tope» es una fila con monto nulo (ventanilla, Tarjetas, tabla 4).
+                IF NOT v_hay_limite OR NOT v_habilitado THEN
                     CALL core.fallar(CONCAT('RN-BD-002: el canal ', NEW.id_canal, ' no opera en ', v_moneda_cuenta));
                 END IF;
-                IF v_hay_limite AND v_tope IS NOT NULL THEN
+                IF v_tope IS NOT NULL THEN
                     SELECT coalesce(max(monto_acumulado), 0) INTO v_consumo FROM core.consumo_diario
                      WHERE num_cuenta = NEW.num_cuenta AND id_canal = NEW.id_canal
                        AND fecha_corte = core.fn_fecha_negocio(NEW.fecha_hora)
@@ -613,10 +619,10 @@ BEGIN
         END IF;
         SELECT TRUE, habilitado, monto_maximo_diario INTO v_hay_limite, v_habilitado, v_tope
           FROM core.limite_canal WHERE id_canal = v_canal AND moneda = v_moneda;
-        IF v_hay_limite AND NOT v_habilitado THEN
+        IF NOT v_hay_limite OR NOT v_habilitado THEN
             CALL core.fallar(CONCAT('ERR-TAR-006: el canal ', v_canal, ' no opera en ', v_moneda, ' (RN-BD-002)'));
         END IF;
-        IF v_hay_limite AND v_tope IS NOT NULL THEN
+        IF v_tope IS NOT NULL THEN
             SELECT coalesce(max(monto_acumulado), 0) INTO v_consumo FROM core.consumo_diario
              WHERE num_cuenta = p_num_cuenta AND id_canal = v_canal
                AND fecha_corte = core.fn_fecha_negocio(p_momento)
