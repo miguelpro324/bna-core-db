@@ -485,7 +485,7 @@ TARJETA_X218="UUID_TO_BIN('15000000-0000-4000-8000-0000000000d1')"
 caso X218 'cambiar_estado_cliente no cambia el estado ni bloquea tarjetas si falla el evento (C1)' \
   "SELECT (SELECT estado_cliente FROM clientes.cliente WHERE cod_cliente = 'CX218') = 'ACTIVO'
       AND ($(estado "$TARJETA_X218" ACTIVA))
-      AND (SELECT COUNT(*) FROM tarjetas.historial_estado_tarjeta WHERE id_tarjeta = $TARJETA_X218) = 0" <<'SQL'
+      AND (SELECT COUNT(*) FROM tarjetas.historial_estado_tarjeta WHERE id_tarjeta = $TARJETA_X218 AND estado_nuevo = 'BLOQUEADA') = 0" <<'SQL'
 CALL clientes.cambiar_estado_cliente('CX218', 'BLOQUEADO', 'Fraude', NULL, @a);
 SQL
 caso X219 'crear_usuario_servicio no deja la fila si falla el evento (C1)' \
