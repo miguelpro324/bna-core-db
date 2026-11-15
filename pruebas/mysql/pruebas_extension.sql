@@ -227,7 +227,7 @@ CALL prueba.rechaza('X68', 'Extensión', 'Canal', 'Una autorización por HB en U
   JSON_ARRAY("INSERT INTO tarjetas.autorizacion (tipo_operacion, monto, estado_autorizacion, id_canal, id_tarjeta, num_cuenta) VALUES ('RETIRO', 10, 'AUTORIZADA', 'HB', UUID_TO_BIN('a0000000-0000-4000-8000-000000000001'), 'CTA-USD-1')"),
   'ERR-TAR-006: el canal HB no opera en USD$', 'trigger');
 
--- Autorizaciones y extornos de tarjeta (v1.5). T1 es la tarjeta de C001
+-- Autorizaciones, extornos y credenciales de tarjeta (v1.5). T1 es la tarjeta de C001
 -- y opera CTA-PEN-1, CTA-USD-1 y CTA-CONJ.
 SET @t1 = UUID_TO_BIN('a0000000-0000-4000-8000-000000000001');
 
@@ -307,3 +307,47 @@ CALL prueba.rechaza('X370', 'Extensión', 'Extorno', 'No se extorna una operaci�
              "CALL prueba.movimiento('CTA-PEN-1', 'RETIRO', 100, 'ATM', NULL, UUID_TO_BIN('a2000000-0000-4000-8000-000000000013'), @m)",
              "CALL tarjetas.extornar_autorizacion(UUID_TO_BIN('a2000000-0000-4000-8000-000000000013'), 'x', 'pruebas', @x)"),
   'BNA-EXTORNO: la operación ya tiene su movimiento', 'procedimiento');
+
+CALL prueba.verifica('X371', 'Extensión', 'Credenciales', 'Un PIN registrado se valida y no queda en claro',
+  JSON_ARRAY("CALL tarjetas.registrar_credencial(@t1, 'PIN_ATM', '4821', 'pruebas')",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '4821', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r, @i)"),
+  "SELECT @r = 'EXITOSO' AND @i = 3 AND (SELECT COUNT(*) FROM tarjetas.credencial WHERE id_tarjeta = @t1 AND (hash_credencial LIKE '%4821%' OR sal LIKE '%4821%' OR hash_credencial = SHA2('4821', 256))) = 0 AND (SELECT COUNT(*) FROM core.evento_auditoria WHERE detalle LIKE '%4821%') = 0",
+  'EXITOSO y 3 intentos', "SELECT CONCAT(@r, ', ', @i)", 'procedimiento');
+
+CALL prueba.verifica('X372', 'Extensión', 'Credenciales', 'Un PIN equivocado registra el intento FALLIDO y descuenta uno',
+  JSON_ARRAY("CALL tarjetas.registrar_credencial(@t1, 'PIN_ATM', '4821', 'pruebas')",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '0000', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r, @i)"),
+  "SELECT @r = 'FALLIDO' AND @i = 2 AND (SELECT COUNT(*) FROM tarjetas.intento_autenticacion WHERE id_tarjeta = @t1 AND resultado = 'FALLIDO') = 1",
+  'FALLIDO y 2 intentos', "SELECT CONCAT(@r, ', ', @i)", 'procedimiento');
+
+CALL prueba.verifica('X373', 'Extensión', 'Credenciales', 'El tercer PIN equivocado bloquea la tarjeta (RN-TAR-004)',
+  JSON_ARRAY("CALL tarjetas.registrar_credencial(@t1, 'PIN_ATM', '4821', 'pruebas')",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '0000', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r, @i)",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '0001', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r, @i)",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '0002', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r, @i)"),
+  "SELECT @r = 'FALLIDO' AND @i = 0 AND (SELECT estado_tarjeta FROM tarjetas.tarjeta WHERE id_tarjeta = @t1) = 'BLOQUEADA'",
+  'BLOQUEADA y 0 intentos', "SELECT (SELECT estado_tarjeta FROM tarjetas.tarjeta WHERE id_tarjeta = @t1)", 'procedimiento');
+
+CALL prueba.rechaza('X374', 'Extensión', 'Credenciales', 'Con la tarjeta bloqueada no se valida el PIN ni se registra el intento',
+  JSON_ARRAY("CALL tarjetas.registrar_credencial(@t1, 'PIN_ATM', '4821', 'pruebas')",
+             "CALL tarjetas.cambiar_estado_tarjeta(@t1, 'BLOQUEADA', 'prueba', 'CLIENTE', 'pruebas', @h)",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '4821', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r, @i)"),
+  'ERR-TAR-003: la tarjeta no es operativa', 'procedimiento');
+
+CALL prueba.rechaza('X375', 'Extensión', 'Credenciales', 'Un PIN de cinco dígitos se rechaza sin mostrarlo (RN-TAR-001)',
+  JSON_ARRAY("CALL tarjetas.registrar_credencial(@t1, 'PIN_ATM', '48213', 'pruebas')"),
+  'BNA-CREDENCIAL: PIN_ATM debe tener 4 dígitos$', 'procedimiento');
+
+CALL prueba.verifica('X376', 'Extensión', 'Credenciales', 'Cambiar el PIN reemplaza el anterior y reinicia los intentos',
+  JSON_ARRAY("CALL tarjetas.registrar_credencial(@t1, 'PIN_ATM', '4821', 'pruebas')",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '0000', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r, @i)",
+             "CALL tarjetas.registrar_credencial(@t1, 'PIN_ATM', '7390', 'pruebas')",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '4821', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r1, @i1)",
+             "CALL tarjetas.validar_credencial(@t1, 'PIN_ATM', '7390', NULL, 'ATM-AQP-001', NULL, NULL, 'pruebas', @r2, @i2)"),
+  "SELECT @r1 = 'FALLIDO' AND @i1 = 2 AND @r2 = 'EXITOSO' AND @i2 = 3",
+  'el PIN anterior falla y el nuevo pasa', "SELECT CONCAT(@r1, ', ', @r2)", 'procedimiento');
+
+CALL prueba.verifica('X377', 'Extensión', 'Credenciales', 'La clave web de seis dígitos se valida por Home Banking',
+  JSON_ARRAY("CALL tarjetas.registrar_credencial(@t1, 'CLAVE_WEB', '615243', 'pruebas')",
+             "CALL tarjetas.validar_credencial(@t1, 'CLAVE_WEB', '615243', 'HB', NULL, '10.0.0.8', NULL, 'pruebas', @r, @i)"),
+  "SELECT @r = 'EXITOSO' AND @i = 3", 'EXITOSO', "SELECT @r", 'procedimiento');
