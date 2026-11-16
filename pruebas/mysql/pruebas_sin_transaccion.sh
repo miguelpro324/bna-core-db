@@ -788,7 +788,8 @@ COMMIT;
 SQL
 root_ -e "CALL prueba.cap_consentido(448, '71000448', @c);
           CALL clientes.emitir_otp_captacion(UUID_TO_BIN('35200000-0000-4000-8000-000000000448'), @c, 'SMS', REPEAT('a', 64), 'asesor.cap', UUID_TO_BIN(UUID()), @x);
-          UPDATE clientes.otp_captacion SET fecha_expiracion = UTC_TIMESTAMP(6) - INTERVAL 1 SECOND
+          UPDATE clientes.otp_captacion SET fecha_emision = UTC_TIMESTAMP(6) - INTERVAL 10 MINUTE,
+                                            fecha_expiracion = UTC_TIMESTAMP(6) - INTERVAL 1 SECOND
            WHERE id_otp = UUID_TO_BIN('35200000-0000-4000-8000-000000000448')" || true
 caso X448 'Un OTP vencido queda EXPIRADO aunque el código sea correcto, y no verifica el celular (v1.7)' \
   "SELECT (SELECT estado FROM clientes.otp_captacion WHERE id_otp = UUID_TO_BIN('35200000-0000-4000-8000-000000000448')) = 'EXPIRADO'
