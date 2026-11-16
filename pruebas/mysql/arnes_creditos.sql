@@ -83,7 +83,7 @@ CREATE PROCEDURE prueba.cr_orden(IN p_id CHAR(36), IN p_cliente VARCHAR(12), IN 
 BEGIN
     DECLARE v_eval BINARY(16);
     CALL prueba.cr_aprobada(p_id, p_cliente, p_monto, p_n, NULL, v_eval);
-    CALL creditos.preparar_orden(v_eval, p_cuenta, 'VEN', 'AQP01', core.uuid_v4(), SHA2(p_id, 256), 'operador.cr',
+    CALL creditos.preparar_orden(v_eval, p_cuenta, 'VEN', 'AQP01', UUID_TO_BIN(UUID()), SHA2(p_id, 256), 'operador.cr',
                                  UUID_TO_BIN(UUID()), p_orden, @cr_codigo, @cr_repetido);
 END //
 

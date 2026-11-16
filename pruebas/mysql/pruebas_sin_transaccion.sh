@@ -631,7 +631,7 @@ root_ -e "UPDATE creditos.evaluacion SET fecha_evaluacion = UTC_TIMESTAMP(6) - I
 caso_msg X348 'Una aprobación de hace más de 30 días ya no admite órdenes ni figura como vigente' '^ERROR.*BNA-APROBACION' \
   "SELECT (SELECT COUNT(*) FROM creditos.orden_desembolso o JOIN creditos.evaluacion e ON e.id_evaluacion = o.id_evaluacion WHERE e.id_solicitud = $(sol 348)) = 0
       AND (SELECT COUNT(*) FROM creditos.v_aprobacion_api WHERE id_solicitud = $(sol 348)) = 0" <<SQL
-CALL creditos.preparar_orden(creditos.fn_id_evaluacion($(sol 348), 1), 'CTA-PEN-1', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep);
+CALL creditos.preparar_orden(creditos.fn_id_evaluacion($(sol 348), 1), 'CTA-PEN-1', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep);
 SQL
 root_ -e "UPDATE cuentas.cuenta_ahorro SET estado_cuenta = 'BLOQUEADA' WHERE num_cuenta = 'CR-PEN-1C'"
 caso_msg X349 'Una cuenta bloqueada después de validar impide confirmar, sin movimiento' '^ERROR.*BNA-CUENTA-DESTINO' \

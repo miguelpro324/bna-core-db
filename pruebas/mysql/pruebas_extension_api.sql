@@ -639,7 +639,7 @@ CALL prueba.verifica('X284', 'Extensión', 'Créditos', 'Preparar una orden: PRE
 
 CALL prueba.verifica('X285', 'Extensión', 'Créditos', 'Repetir la preparación con la misma llave y contenido devuelve la misma orden',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000287', 'C001', 3000, 3, NULL, @e)",
-             "SET @llave = core.uuid_v4()",
+             "SET @llave = UUID_TO_BIN(UUID())",
              "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, @llave, REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o1, @c1, @rep1)",
              "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, @llave, REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o2, @c2, @rep2)"),
   "SELECT @o1 = @o2 AND @c1 = @c2 AND @rep1 = FALSE AND @rep2 = TRUE AND (SELECT COUNT(*) FROM creditos.v_orden_api WHERE id_evaluacion = @e) = 1",
@@ -647,50 +647,50 @@ CALL prueba.verifica('X285', 'Extensión', 'Créditos', 'Repetir la preparación
 
 CALL prueba.rechaza('X286', 'Extensión', 'Créditos', 'La misma llave con otro contenido se rechaza',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000288', 'C001', 3000, 3, NULL, @e)",
-             "SET @llave = core.uuid_v4()",
+             "SET @llave = UUID_TO_BIN(UUID())",
              "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, @llave, REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)",
              "CALL creditos.preparar_orden(@e, 'CR-PEN-1B', 'VEN', NULL, @llave, REPEAT('b', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-IDEMPOTENCIA:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X287', 'Extensión', 'Créditos', 'Una aprobación tiene a lo sumo una orden abierta',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000289', 'C001', 3000, 3, NULL, @e)",
-             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)",
-             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)",
+             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-ORDEN:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X288', 'Extensión', 'Créditos', 'No se prepara una orden sin aprobación (R-B sin decidir)',
   JSON_ARRAY("CALL prueba.cr_solicitud('33000000-0000-4000-8000-000000000290', 'C001', 3000, 3, 1, NULL, @r, @e)",
              "CALL creditos.evaluar_solicitud(UUID_TO_BIN('33000000-0000-4000-8000-000000000290'), 1, 20000, 0, 650, 3500, 'pruebas', UUID_TO_BIN(UUID()), @e, @res, @regla)",
-             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-APROBACION:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X289', 'Extensión', 'Créditos', 'No se prepara una orden de un id de evaluación inexistente',
-  JSON_ARRAY("CALL creditos.preparar_orden(core.uuid_v4(), 'CTA-PEN-1', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+  JSON_ARRAY("CALL creditos.preparar_orden(UUID_TO_BIN(UUID()), 'CTA-PEN-1', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-APROBACION:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X290', 'Extensión', 'Créditos', 'No se prepara una orden si la primera cuota ya venció',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000291', 'C001', 3000, 3, CURRENT_DATE - INTERVAL 1 DAY, @e)",
-             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-CALENDARIO:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X291', 'Extensión', 'Créditos', 'La cuenta destino debe ser del cliente, y el mensaje no la repite',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000292', 'C001', 3000, 3, NULL, @e)",
-             "CALL creditos.preparar_orden(@e, 'CTA-PEN-2', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+             "CALL creditos.preparar_orden(@e, 'CTA-PEN-2', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-CUENTA-DESTINO:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X292', 'Extensión', 'Créditos', 'La cuenta destino debe estar en la moneda del crédito',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000293', 'C001', 3000, 3, NULL, @e)",
-             "CALL creditos.preparar_orden(@e, 'CTA-USD-1', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+             "CALL creditos.preparar_orden(@e, 'CTA-USD-1', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-CUENTA-DESTINO:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X293', 'Extensión', 'Créditos', 'La cuenta destino debe ser individual',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000294', 'C001', 3000, 3, NULL, @e)",
-             "CALL creditos.preparar_orden(@e, 'CTA-CONJ', 'VEN', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+             "CALL creditos.preparar_orden(@e, 'CTA-CONJ', 'VEN', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-CUENTA-DESTINO:[^0-9]*$', 'procedimiento');
 
 CALL prueba.rechaza('X294', 'Extensión', 'Créditos', 'El desembolso es por ventanilla o Home Banking',
   JSON_ARRAY("CALL prueba.cr_aprobada('33000000-0000-4000-8000-000000000295', 'C001', 3000, 3, NULL, @e)",
-             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'ATM', NULL, core.uuid_v4(), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
+             "CALL creditos.preparar_orden(@e, 'CTA-PEN-1', 'ATM', NULL, UUID_TO_BIN(UUID()), REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @o, @c, @rep)"),
   '^BNA-CANAL:[^0-9]*$', 'procedimiento');
 
 -- Validaciones previas
@@ -859,8 +859,8 @@ CALL prueba.rechaza('X321', 'Extensión', 'Créditos', 'Un crédito inexistente 
 CALL prueba.verifica('X322', 'Extensión', 'Créditos', 'El pago se lee con su cuenta, su movimiento y su reparto entre cuotas',
   JSON_ARRAY("CALL prueba.cr_credito('33000000-0000-4000-8000-000000000322', 'C001', '70000001', 'CTA-PEN-1', 3000, 3, @cod)",
              "CALL creditos.registrar_pago_cuota(@cod, 'CTA-PEN-1', 1500, 'REF-X322', 'HB', REPEAT('a', 64), 'operador.cr', UUID_TO_BIN(UUID()), @pago, @e, @a, @m, @r)"),
-  "SELECT CONCAT_WS(' ', referencia, num_cuenta, id_canal, estado_confirmacion, monto_pago, monto_aplicado, uuid_transaccion IS NOT NULL, JSON_LENGTH(aplicaciones), JSON_EXTRACT(aplicaciones, '$[1].numero_cuota'), JSON_EXTRACT(aplicaciones, '$[1].monto_aplicado')) = 'REF-X322 CTA-PEN-1 HB CONFIRMADO 1500.00 1500.00 1 2 2 490.00' FROM creditos.v_pago_api WHERE id_pago = @pago",
-  'REF-X322 CTA-PEN-1 HB CONFIRMADO 1500.00 1500.00 1 2 2 490.00', "SELECT CONCAT_WS(' ', referencia, num_cuenta, id_canal, estado_confirmacion, monto_pago, monto_aplicado, uuid_transaccion IS NOT NULL, JSON_LENGTH(aplicaciones), JSON_EXTRACT(aplicaciones, '$[1].numero_cuota'), JSON_EXTRACT(aplicaciones, '$[1].monto_aplicado')) FROM creditos.v_pago_api WHERE id_pago = @pago", 'vista');
+  "SELECT CONCAT_WS(' ', referencia, num_cuenta, id_canal, estado_confirmacion, monto_pago, monto_aplicado, uuid_transaccion IS NOT NULL, JSON_LENGTH(aplicaciones), JSON_CONTAINS(aplicaciones, JSON_OBJECT('numero_cuota', 2, 'monto_aplicado', 490.00)), JSON_CONTAINS(aplicaciones, JSON_OBJECT('numero_cuota', 1, 'monto_aplicado', 1010.00))) = 'REF-X322 CTA-PEN-1 HB CONFIRMADO 1500.00 1500.00 1 2 1 1' FROM creditos.v_pago_api WHERE id_pago = @pago",
+  'REF-X322 CTA-PEN-1 HB CONFIRMADO 1500.00 1500.00 1 2 1 1', "SELECT CONCAT_WS(' ', referencia, num_cuenta, id_canal, estado_confirmacion, monto_pago, monto_aplicado, uuid_transaccion IS NOT NULL, JSON_LENGTH(aplicaciones), CAST(aplicaciones AS CHAR)) FROM creditos.v_pago_api WHERE id_pago = @pago", 'vista');
 
 -- Mora y vencimientos (CR-0001 de datos.sql: la cuota 1 venció el 2026-11-15)
 CALL prueba.verifica('X323', 'Extensión', 'Créditos', 'Se registra la mora de una cuota atrasada; queda vigente con sus días de atraso',
