@@ -2595,6 +2595,7 @@ INSERT INTO core.modulo (id_modulo, nombre) VALUES
     (3, 'CUENTAS'),
     (8, 'BUS DE SERVICIOS'),
     (9, 'SEGURIDAD'),
+    (10, 'BILLETERA'),
     (11, 'SOLICITUD DE CREDITO'),
     (12, 'EVALUACION'),
     (13, 'DESEMBOLSO'),

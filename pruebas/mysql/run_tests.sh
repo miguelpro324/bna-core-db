@@ -211,6 +211,28 @@ if [ "$(root_ -N -e "SELECT count(*) = 1 FROM cuentas.movimiento WHERE uuid_tran
 registrar X509 bna_app_user Concurrencia 'Extensión v1.8' 'Dos confirmaciones simultáneas con la misma llave: la segunda es idempotente' procedimiento \
   'un solo débito; segunda operación: aceptada' "$(root_ -N -e "SELECT CONCAT('débitos: ', count(*)) FROM cuentas.movimiento WHERE uuid_transaccion = UUID_TO_BIN('a3000000-0000-4000-8000-000000000010')"); segunda: $(echo "$b" | tail -1 | cut -c1-80 | tr -d "'")" "$ok"
 
+# X650 (v1.9): dos pagos simultáneos de la misma solicitud de cobro con LLAVES DIFERENTES.
+# Primero se crea la solicitud; luego la sesión A paga con 'llave-x650-a'
+# y la sesión B paga con 'llave-x650-b'. B debe fallar con BNA-SOLICITUD-YA-PAGADA y debe
+# haber exactamente 1 movimiento.
+# Solicitud previa para X650 (usa C002=959000002 como solicitado y C003=959000003 como pagador).
+app_ -e "CALL clientes.registrar_credencial_cliente('C001', '959000001', '123456', 'pruebas')" >/dev/null
+app_ -e "CALL clientes.registrar_credencial_cliente('C002', '959000002', '123456', 'pruebas')" >/dev/null
+app_ -e "CALL clientes.registrar_credencial_cliente('C003', '959000003', '123456', 'pruebas')" >/dev/null
+app_ -e "CALL billetera.crear_solicitud_cobro(UUID_TO_BIN('a4000000-0000-4000-8000-000000000001'), 'C001', '959000002', 100.00, 'Test Concurrencia', 'BD', UUID_TO_BIN(UUID()), 'llave-solicitud-x650', REPEAT('s', 64), 'pruebas', @ids)" >/dev/null
+printf 'START TRANSACTION;\n%s;\nDO SLEEP(2);\nCOMMIT;\n' \
+  "CALL billetera.pagar_solicitud_cobro(UUID_TO_BIN('a4000000-0000-4000-8000-000000000002'), @ids, 'BD', UUID_TO_BIN(UUID()), 'llave-x650-a', REPEAT('x', 64), 'pruebas', @trx, @estado)" | app_ > "$OUT/X650-a.log" 2>&1 &
+a=$!
+sleep 1
+b="$(printf 'START TRANSACTION;\n%s;\nCOMMIT;\n' \
+  "CALL billetera.pagar_solicitud_cobro(UUID_TO_BIN('a4000000-0000-4000-8000-000000000003'), @ids, 'BD', UUID_TO_BIN(UUID()), 'llave-x650-b', REPEAT('y', 64), 'pruebas', @trx, @estado)" | app_ 2>&1 || true)"
+wait "$a" || true
+echo "$b" > "$OUT/X650-b.log"
+ok=0
+if [ "$(root_ -N -e "SELECT count(*) = 1 FROM cuentas.movimiento WHERE uuid_transaccion IN (UUID_TO_BIN('a4000000-0000-4000-8000-000000000002'), UUID_TO_BIN('a4000000-0000-4000-8000-000000000003'))")" = 1 ] && echo "$b" | grep -q 'BNA-SOLICITUD-YA-PAGADA'; then ok=1; fi
+registrar X650 bna_app_user Concurrencia 'Extensión v1.9' 'Dos pagos simultáneos de la misma solicitud con llaves distintas: la segunda falla con BNA-SOLICITUD-YA-PAGADA' procedimiento \
+  'un solo débito; segunda operación: BNA-SOLICITUD-YA-PAGADA' "$(root_ -N -e "SELECT CONCAT('débitos: ', count(*)) FROM cuentas.movimiento WHERE uuid_transaccion IN (UUID_TO_BIN('a4000000-0000-4000-8000-000000000002'), UUID_TO_BIN('a4000000-0000-4000-8000-000000000003'))"); segunda: $(echo "$b" | tail -1 | cut -c1-80 | tr -d "'")" "$ok"
+
 # X234 (v1.1): dos registros simultáneos con el mismo correo; el segundo espera en el
 # índice único y se rechaza cuando el primero confirma.
 CLIENTE=api_ concurrente X234 'Extensión v1.1' 'Dos registros simultáneos con el mismo correo dejan un solo cliente' \

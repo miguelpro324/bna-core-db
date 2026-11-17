@@ -410,7 +410,7 @@ SEEDS = [
      [("PEN", "Sol", "S/", 2), ("USD", "Dólar estadounidense", "US$", 2)]),
     ("MODULO", ["id_modulo", "nombre"],
      [(1, "CORE"), (2, "CLIENTES"), (3, "CUENTAS"), (8, "BUS DE SERVICIOS"), (9, "SEGURIDAD"),
-      (11, "SOLICITUD DE CREDITO"), (12, "EVALUACION"), (13, "DESEMBOLSO"), (14, "COBRANZA")]),
+      (10, "BILLETERA"), (11, "SOLICITUD DE CREDITO"), (12, "EVALUACION"), (13, "DESEMBOLSO"), (14, "COBRANZA")]),
     ("TIPO_DOCUMENTO", ["cod_tipo_documento", "descripcion", "longitud_min", "longitud_max", "es_alfanumerico"],
      [("DNI", "Documento Nacional de Identidad", 8, 8, False),
       ("CE", "Carné de extranjería", 9, 12, True),

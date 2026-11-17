@@ -34,3 +34,8 @@ cuentas.titularidad
 cuentas.v_movimiento_api
 tarjetas.v_autorizacion_api
 tarjetas.v_tarjeta_api
+billetera.v_comercio_api
+billetera.v_qr_api
+billetera.v_solicitud_cobro_api
+billetera.v_notificacion_api
+billetera.v_operador_servicio_api

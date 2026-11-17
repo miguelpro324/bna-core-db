@@ -421,3 +421,257 @@ CALL prueba.rechaza('X507', 'Extensión', 'Confirmación', 'No se confirma una a
   JSON_ARRAY("INSERT INTO tarjetas.autorizacion (uuid_autorizacion, tipo_operacion, monto, estado_autorizacion, codigo_respuesta, id_terminal, ip_origen, id_tarjeta, num_cuenta, id_canal) VALUES (UUID_TO_BIN('a3000000-0000-4000-8000-000000000008'), 'RETIRO', 10, 'INICIADA', NULL, 'ATM-AQP-001', NULL, @t1, 'CTA-PEN-1', NULL)",
              "CALL tarjetas.confirmar_autorizacion(UUID_TO_BIN('a3000000-0000-4000-8000-000000000008'), 'llave-confirmar-008', REPEAT('e', 64), 'pruebas', 'ATM', NULL, @trx, @estado)"),
   'BNA-CONFIRMACION: la autorización no está en estado vigente', 'procedimiento');
+
+-- =====================================================================
+-- Billetera Digital Chaski (v1.9)
+-- =====================================================================
+
+-- 1. Credencial de cliente para el canal BD
+-- Usa C003 (ACTIVO) y C004 (BLOQUEADO) que ya existen en datos.sql
+-- C001: 959000001, C002: 959000002, C003: 959000003, C004: 959000004 (BLOQUEADO)
+
+CALL prueba.rechaza('X600', 'Billetera', 'Credencial Cliente', 'Registrar credencial: cliente inexistente',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('CLI999999999', '999999999', '123456', 'pruebas')"),
+  'BNA-CLIENTE: el cliente no existe o no puede operar', 'procedimiento');
+
+CALL prueba.rechaza('X601', 'Billetera', 'Credencial Cliente', 'Registrar credencial: cliente no puede operar (BLOQUEADO)',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C004', '999999999', '123456', 'pruebas')"),
+  'BNA-CLIENTE: el cliente no existe o no puede operar', 'procedimiento');
+
+CALL prueba.rechaza('X602', 'Billetera', 'Credencial Cliente', 'Registrar credencial: celular ya registrado',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C001', '959000001', '123456', 'pruebas'),
+             CALL clientes.registrar_credencial_cliente('C002', '959000001', '654321', 'pruebas')"),
+  'BNA-CELULAR-DUPLICADO', 'procedimiento');
+
+CALL prueba.rechaza('X603', 'Billetera', 'Credencial Cliente', 'Registrar credencial: PIN inválido (no 6 dígitos)',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C003', '999999999', '12345', 'pruebas')"),
+  'BNA-CREDENCIAL: PIN_BD debe tener 6 dígitos', 'procedimiento');
+
+CALL prueba.verifica('X604', 'Billetera', 'Credencial Cliente', 'Registrar credencial feliz',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C003', '988000001', '123456', 'pruebas')"),
+  "SELECT (SELECT COUNT(*) FROM clientes.credencial_cliente WHERE cod_cliente = 'C003') = 1",
+  'credencial registrada', "SELECT COUNT(*) FROM clientes.credencial_cliente WHERE cod_cliente = 'C003'", 'procedimiento');
+
+CALL prueba.verifica('X605', 'Billetera', 'Credencial Cliente', 'Validar credencial: PIN correcto',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C003', '988000001', '123456', 'pruebas'),
+             CALL clientes.validar_credencial_cliente('988000001', '123456', NULL, NULL, NULL, 'pruebas', @cod, @intentos)"),
+  "SELECT @cod = 'C003' AND @intentos = 3",
+  'C003 con 3 intentos', "SELECT CONCAT(@cod, ', ', @intentos)", 'procedimiento');
+
+CALL prueba.verifica('X606', 'Billetera', 'Credencial Cliente', 'Validar credencial: PIN incorrecto cuenta intento',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C003', '988000001', '123456', 'pruebas'),
+             CALL clientes.validar_credencial_cliente('988000001', '000000', NULL, NULL, NULL, 'pruebas', @cod, @intentos)"),
+  "SELECT @cod IS NULL AND @intentos = 2",
+  'NULL con 2 intentos', "SELECT CONCAT(COALESCE(@cod, 'NULL'), ', ', @intentos)", 'procedimiento');
+
+CALL prueba.verifica('X607', 'Billetera', 'Credencial Cliente', 'Tercer fallo bloquea la credencial',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C003', '988000001', '123456', 'pruebas'),
+             CALL clientes.validar_credencial_cliente('988000001', '000000', NULL, NULL, NULL, 'pruebas', @c1, @i1),
+             CALL clientes.validar_credencial_cliente('988000001', '000001', NULL, NULL, NULL, 'pruebas', @c2, @i2),
+             CALL clientes.validar_credencial_cliente('988000001', '000002', NULL, NULL, NULL, 'pruebas', @c3, @i3)"),
+  "SELECT @c3 IS NULL AND @i3 = 0 AND (SELECT estado FROM clientes.credencial_cliente WHERE cod_cliente = 'C003') = 'BLOQUEADA'",
+  'BLOQUEADA y 0 intentos', "SELECT (SELECT estado FROM clientes.credencial_cliente WHERE cod_cliente = 'C003')", 'procedimiento');
+
+CALL prueba.rechaza('X608', 'Billetera', 'Credencial Cliente', 'Credencial bloqueada no se valida',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C003', '988000001', '123456', 'pruebas'),
+             CALL clientes.validar_credencial_cliente('988000001', '000000', NULL, NULL, NULL, 'pruebas', @c1, @i1),
+             CALL clientes.validar_credencial_cliente('988000001', '000001', NULL, NULL, NULL, 'pruebas', @c2, @i2),
+             CALL clientes.validar_credencial_cliente('988000001', '000002', NULL, NULL, NULL, 'pruebas', @c3, @i3),
+             CALL clientes.validar_credencial_cliente('988000001', '123456', NULL, NULL, NULL, 'pruebas', @c4, @i4)"),
+  'BNA-CREDENCIAL-BLOQUEADA', 'procedimiento');
+
+-- 2. Esquema billetera: comercio
+CALL prueba.rechaza('X610', 'Billetera', 'Comercio', 'bna_app no escribe comercios',
+  JSON_ARRAY("INSERT INTO billetera.comercio (id_comercio, ruc, razon_social, num_cuenta_abono, estado) VALUES (UUID_TO_BIN(UUID()), '20100000099', 'Test', 'CTA-PEN-1', 'ACTIVO')"),
+  'denied', 'privilegio');
+
+CALL prueba.verifica('X611', 'Billetera', 'Comercio', 'Registrar comercio feliz',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('77777777-7777-4777-8777-777777777777'), '20100000099', 'Comercio Test', 'CTA-PEN-1', 'pruebas', @id)"),
+  "SELECT (SELECT COUNT(*) FROM billetera.comercio WHERE ruc = '20100000099') = 1",
+  'comercio registrado', "SELECT COUNT(*) FROM billetera.comercio WHERE ruc = '20100000099'", 'procedimiento');
+
+CALL prueba.rechaza('X612', 'Billetera', 'Comercio', 'Comercio: RUC duplicado',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('77777777-7777-4777-8777-777777777777'), '20100000099', 'Comercio Test', 'CTA-PEN-1', 'pruebas', @id),
+             CALL billetera.registrar_comercio(UUID_TO_BIN('88888888-8888-4888-8888-888888888888'), '20100000099', 'Otro', 'CTA-PEN-1', 'pruebas', @id)"),
+  'uk_comercio_ruc', 'declarativo');
+
+CALL prueba.rechaza('X613', 'Billetera', 'Comercio', 'Comercio: cuenta de abono inexistente',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('99999999-9999-4999-8999-999999999999'), '20200000099', 'Comercio X', 'CTA-NOEXISTE', 'pruebas', @id)"),
+  'BNA-CUENTA: no existe la cuenta', 'procedimiento');
+
+-- 3. Código QR
+CALL prueba.rechaza('X620', 'Billetera', 'QR', 'bna_app no escribe códigos QR',
+  JSON_ARRAY("INSERT INTO billetera.codigo_qr (id_qr, id_comercio, id_cuenta, tipo, monto, estado) VALUES (UUID_TO_BIN(UUID()), UUID_TO_BIN('77777777-7777-4777-8777-777777777777'), NULL, 'ESTATICO', NULL, 'ACTIVO')"),
+  'denied', 'privilegio');
+
+CALL prueba.verifica('X621', 'Billetera', 'QR', 'QR estático de comercio',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), '20300000099', 'Comercio QR', 'CTA-PEN-1', 'pruebas', @idc),
+             CALL billetera.crear_qr(UUID_TO_BIN('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'), @idc, NULL, 'ESTATICO', NULL, NULL, 'pruebas', @idqr)"),
+  "SELECT (SELECT tipo FROM billetera.codigo_qr WHERE id_qr = @idqr) = 'ESTATICO' AND (SELECT monto FROM billetera.codigo_qr WHERE id_qr = @idqr) IS NULL",
+  'QR estático sin monto', "SELECT CONCAT((SELECT tipo FROM billetera.codigo_qr WHERE id_qr = @idqr), ', ', COALESCE((SELECT monto FROM billetera.codigo_qr WHERE id_qr = @idqr), 'NULL'))", 'procedimiento');
+
+CALL prueba.verifica('X622', 'Billetera', 'QR', 'QR dinámico de cliente con monto fijo',
+  JSON_ARRAY("CALL billetera.crear_qr(UUID_TO_BIN('cccccccc-cccc-4ccc-8ccc-cccccccccccc'), NULL, 'CTA-PEN-2', 'DINAMICO', 50.00, NULL, 'pruebas', @idqr)"),
+  "SELECT (SELECT tipo FROM billetera.codigo_qr WHERE id_qr = @idqr) = 'DINAMICO' AND (SELECT monto FROM billetera.codigo_qr WHERE id_qr = @idqr) = 50.00",
+  'QR dinámico con monto 50', "SELECT CONCAT((SELECT tipo FROM billetera.codigo_qr WHERE id_qr = @idqr), ', ', COALESCE((SELECT monto FROM billetera.codigo_qr WHERE id_qr = @idqr), 'NULL'))", 'procedimiento');
+
+CALL prueba.rechaza('X623', 'Billetera', 'QR', 'QR: ni comercio ni cuenta',
+  JSON_ARRAY("CALL billetera.crear_qr(UUID_TO_BIN('dddddddd-dddd-4ddd-8ddd-dddddddddddd'), NULL, NULL, 'ESTATICO', NULL, NULL, 'pruebas', @idqr)"),
+  'BNA-QR: exige comercio o cuenta', 'procedimiento');
+
+CALL prueba.rechaza('X624', 'Billetera', 'QR', 'QR estático con monto no permitido',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'), '20400000099', 'Comercio QR2', 'CTA-PEN-1', 'pruebas', @idc),
+             CALL billetera.crear_qr(UUID_TO_BIN('ffffffff-ffff-4fff-8fff-ffffffffffff'), @idc, NULL, 'ESTATICO', 100.00, NULL, 'pruebas', @idqr)"),
+  'BNA-QR: QR estático no admite monto', 'procedimiento');
+
+CALL prueba.rechaza('X625', 'Billetera', 'QR', 'QR dinámico sin monto',
+  JSON_ARRAY("CALL billetera.crear_qr(UUID_TO_BIN('11111111-1111-4111-8111-111111111112'), NULL, 'CTA-PEN-2', 'DINAMICO', NULL, NULL, 'pruebas', @idqr)"),
+  'BNA-QR: QR dinámico exige monto', 'procedimiento');
+
+-- 4. Pago QR
+CALL prueba.verifica('X630', 'Billetera', 'Pago QR', 'Pagar QR comercio feliz con saldos',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('22222222-2222-4222-8222-222222222222'), '20500000099', 'Comercio Pago', 'CTA-PEN-1', 'pruebas', @idc),
+             CALL billetera.crear_qr(UUID_TO_BIN('33333333-3333-4333-8333-333333333333'), @idc, NULL, 'ESTATICO', NULL, NULL, 'pruebas', @idqr),
+             SET @s0o = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2'),
+             SET @s0d = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'),
+             CALL billetera.pagar_qr(UUID_TO_BIN('44444444-4444-4444-8444-444444444444'), @idqr, NULL, 100.00, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-qr-001', REPEAT('x', 64), 'pruebas', @uuid, @repetido)"),
+  "SELECT @repetido = 0 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2') = @s0o - 100 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1') = @s0d + 100 AND @uuid IS NOT NULL",
+  'saldo origen -100, destino +100', "SELECT CONCAT('origen: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2'), ', destino: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'))", 'procedimiento');
+
+CALL prueba.rechaza('X631', 'Billetera', 'Pago QR', 'QR vencido',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('55555555-5555-4555-8555-555555555556'), '20600000099', 'Comercio Vencido', 'CTA-PEN-1', 'pruebas', @idc),
+             CALL billetera.crear_qr(UUID_TO_BIN('66666666-6666-4666-8666-666666666666'), @idc, NULL, 'ESTATICO', NULL, DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 DAY), 'pruebas', @idqr),
+             CALL billetera.pagar_qr(UUID_TO_BIN('77777777-7777-4777-8777-777777777778'), @idqr, NULL, 50.00, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-qr-002', REPEAT('y', 64), 'pruebas', @uuid, @repetido)"),
+  'BNA-QR-VENCIDO', 'procedimiento');
+
+CALL prueba.rechaza('X632', 'Billetera', 'Pago QR', 'Pagar dos veces el mismo QR dinámico (segunda falla)',
+  JSON_ARRAY("CALL billetera.crear_qr(UUID_TO_BIN('88888888-8888-4888-8888-888888888889'), NULL, 'CTA-PEN-2', 'DINAMICO', 75.00, NULL, 'pruebas', @idqr),
+             SET @s0o = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'),
+             CALL billetera.pagar_qr(UUID_TO_BIN('99999999-9999-4999-8999-99999999999a'), @idqr, NULL, 75.00, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-qr-003', REPEAT('z', 64), 'pruebas', @uuid1, @r1),
+             CALL billetera.pagar_qr(UUID_TO_BIN('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), @idqr, NULL, 75.00, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-qr-004', REPEAT('w', 64), 'pruebas', @uuid2, @r2)"),
+  'BNA-QR-YA-PAGADO', 'procedimiento');
+
+-- 5. Solicitud de cobro (cliente a cliente por celular)
+-- Usa C002 (959000002) como destinatario y C003 (959000003) como pagador
+CALL prueba.verifica('X640', 'Billetera', 'Solicitud Cobro', 'Crear solicitud de cobro feliz',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C002', '959000002', '123456', 'pruebas'),
+             CALL billetera.crear_solicitud_cobro(UUID_TO_BIN('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'), 'C001', '959000002', 200.00, 'Cena', 'BD', UUID_TO_BIN(UUID()), 'llave-solicitud-001', REPEAT('x', 64), 'pruebas', @id)"),
+  "SELECT (SELECT estado FROM billetera.solicitud_cobro WHERE id_solicitud = @id) = 'PENDIENTE'",
+  'PENDIENTE', "SELECT (SELECT estado FROM billetera.solicitud_cobro WHERE id_solicitud = @id)", 'procedimiento');
+
+CALL prueba.rechaza('X641', 'Billetera', 'Solicitud Cobro', 'Solicitud: celular no registrado en billetera',
+  JSON_ARRAY("CALL billetera.crear_solicitud_cobro(UUID_TO_BIN('cccccccc-cccc-4ccc-8ccc-cccccccccccc'), 'C001', '999999999', 100.00, 'Test', 'BD', UUID_TO_BIN(UUID()), 'llave-solicitud-002', REPEAT('y', 64), 'pruebas', @id)"),
+  'BNA-CELULAR-NO-REGISTRADO', 'procedimiento');
+
+CALL prueba.rechaza('X642', 'Billetera', 'Solicitud Cobro', 'Solicitud: no puedes cobrarte a ti mismo',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C001', '959000001', '123456', 'pruebas'),
+             CALL billetera.crear_solicitud_cobro(UUID_TO_BIN('dddddddd-dddd-4ddd-8ddd-dddddddddddd'), 'C001', '959000001', 100.00, 'Test', 'BD', UUID_TO_BIN(UUID()), 'llave-solicitud-003', REPEAT('z', 64), 'pruebas', @id)"),
+  'BNA-AUTOSOLICITUD', 'procedimiento');
+
+CALL prueba.verifica('X643', 'Billetera', 'Solicitud Cobro', 'Pagar solicitud de cobro feliz',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C003', '959000003', '123456', 'pruebas'),
+             CALL billetera.crear_solicitud_cobro(UUID_TO_BIN('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'), 'C001', '959000003', 150.00, 'Almuerzo', 'BD', UUID_TO_BIN(UUID()), 'llave-solicitud-004', REPEAT('a', 64), 'pruebas', @ids),
+             SET @s0o = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2'),
+             SET @s0d = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'),
+             CALL billetera.pagar_solicitud_cobro(UUID_TO_BIN('ffffffff-ffff-4fff-8fff-ffffffffffff'), @ids, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-solicitud-001', REPEAT('b', 64), 'pruebas', @uuid, @repetido)"),
+  "SELECT @repetido = 0 AND (SELECT estado FROM billetera.solicitud_cobro WHERE id_solicitud = @ids) = 'PAGADA' AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2') = @s0o - 150 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1') = @s0d + 150",
+  'PAGADA, saldos correctos', "SELECT CONCAT('estado: ', (SELECT estado FROM billetera.solicitud_cobro WHERE id_solicitud = @ids), ', origen: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2'), ', destino: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'))", 'procedimiento');
+
+CALL prueba.rechaza('X644', 'Billetera', 'Solicitud Cobro', 'Pagar dos veces la misma solicitud (segunda falla)',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C002', '959000002', '123456', 'pruebas'),
+             CALL billetera.crear_solicitud_cobro(UUID_TO_BIN('11111111-1111-4111-8111-111111111113'), 'C001', '959000002', 80.00, 'Test', 'BD', UUID_TO_BIN(UUID()), 'llave-solicitud-005', REPEAT('c', 64), 'pruebas', @ids),
+             CALL billetera.pagar_solicitud_cobro(UUID_TO_BIN('22222222-2222-4222-8222-222222222223'), @ids, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-solicitud-002', REPEAT('d', 64), 'pruebas', @uuid1, @r1),
+             CALL billetera.pagar_solicitud_cobro(UUID_TO_BIN('33333333-3333-4333-8333-333333333334'), @ids, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-solicitud-003', REPEAT('e', 64), 'pruebas', @uuid2, @r2)"),
+  'BNA-SOLICITUD-YA-PAGADA', 'procedimiento');
+
+-- 6. Transferencia P2P por celular
+-- Usa C002 (959000002) como destinatario
+CALL prueba.verifica('X650', 'Billetera', 'Transferencia P2P', 'Transferencia P2P por celular feliz',
+  JSON_ARRAY("CALL clientes.registrar_credencial_cliente('C002', '959000002', '123456', 'pruebas'),
+             SET @s0o = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'),
+             SET @s0d = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2'),
+             CALL billetera.transferir_celular(UUID_TO_BIN('44444444-4444-4444-8444-444444444445'), 'C001', '959000002', 300.00, 'Regalo', 'BD', UUID_TO_BIN(UUID()), 'llave-p2p-001', REPEAT('f', 64), 'pruebas', @uuid, @repetido)"),
+  "SELECT @repetido = 0 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1') = @s0o - 300 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2') = @s0d + 300",
+  'saldos correctos', "SELECT CONCAT('origen: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'), ', destino: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2'))", 'procedimiento');
+
+CALL prueba.rechaza('X651', 'Billetera', 'Transferencia P2P', 'P2P: celular no registrado',
+  JSON_ARRAY("CALL billetera.transferir_celular(UUID_TO_BIN('55555555-5555-4555-8555-555555555557'), 'C001', '999999999', 100.00, 'Test', 'BD', UUID_TO_BIN(UUID()), 'llave-p2p-002', REPEAT('g', 64), 'pruebas', @uuid, @repetido)"),
+  'BNA-CELULAR-NO-REGISTRADO', 'procedimiento');
+
+CALL prueba.rechaza('X652', 'Billetera', 'Transferencia P2P', 'P2P: no te puedes transferir a ti mismo',
+  JSON_ARRAY("CALL billetera.transferir_celular(UUID_TO_BIN('66666666-6666-4666-8666-666666666667'), 'C001', '959000001', 100.00, 'Test', 'BD', UUID_TO_BIN(UUID()), 'llave-p2p-003', REPEAT('h', 64), 'pruebas', @uuid, @repetido)"),
+  'BNA-AUTOTRANSFERENCIA', 'procedimiento');
+
+-- 7. Recarga celular
+CALL prueba.verifica('X660', 'Billetera', 'Recarga', 'Recarga celular feliz',
+  JSON_ARRAY("CALL billetera.registrar_operador_servicio('Claro', 'RECARGA', TRUE, 'pruebas'),
+             SET @s0 = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'),
+             CALL billetera.recargar_celular(UUID_TO_BIN('77777777-7777-4777-8777-777777777779'), 'C001', 'Claro', '987654321', 20.00, 'BD', UUID_TO_BIN(UUID()), 'llave-recarga-001', REPEAT('i', 64), 'pruebas', @uuid, @repetido)"),
+  "SELECT @repetido = 0 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1') = @s0 - 20 AND (SELECT COUNT(*) FROM billetera.recarga WHERE operador = 'Claro' AND celular = '987654321') = 1",
+  'saldo -20 y recarga registrada', "SELECT CONCAT('saldo: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'))", 'procedimiento');
+
+CALL prueba.rechaza('X661', 'Billetera', 'Recarga', 'Recarga: operador no existe',
+  JSON_ARRAY("CALL billetera.recargar_celular(UUID_TO_BIN('88888888-8888-4888-8888-88888888888a'), 'C001', 'Inexistente', '987654321', 20.00, 'BD', UUID_TO_BIN(UUID()), 'llave-recarga-002', REPEAT('j', 64), 'pruebas', @uuid, @repetido)"),
+  'BNA-OPERADOR-NO-EXISTE', 'procedimiento');
+
+CALL prueba.rechaza('X662', 'Billetera', 'Recarga', 'Recarga: monto no permitido',
+  JSON_ARRAY("CALL billetera.recargar_celular(UUID_TO_BIN('99999999-9999-4999-8999-99999999999b'), 'C001', 'Claro', '987654321', 99.00, 'BD', UUID_TO_BIN(UUID()), 'llave-recarga-003', REPEAT('k', 64), 'pruebas', @uuid, @repetido)"),
+  'BNA-MONTO-NO-PERMITIDO', 'procedimiento');
+
+-- 8. Pago de servicio
+CALL prueba.verifica('X670', 'Billetera', 'Pago Servicio', 'Pago de servicio feliz',
+  JSON_ARRAY("CALL billetera.registrar_operador_servicio('Sedapal', 'SERVICIO', TRUE, 'pruebas'),
+             SET @s0 = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'),
+             CALL billetera.pagar_servicio(UUID_TO_BIN('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), 'C001', 'Sedapal', '12345678', '2026-01', 150.00, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-serv-001', REPEAT('l', 64), 'pruebas', @uuid, @repetido)"),
+  "SELECT @repetido = 0 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1') = @s0 - 150 AND (SELECT COUNT(*) FROM billetera.pago_servicio WHERE operador = 'Sedapal' AND referencia = '12345678') = 1",
+  'saldo -150 y pago registrado', "SELECT CONCAT('saldo: ', (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'))", 'procedimiento');
+
+CALL prueba.rechaza('X671', 'Billetera', 'Pago Servicio', 'Pago servicio: operador no existe',
+  JSON_ARRAY("CALL billetera.pagar_servicio(UUID_TO_BIN('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'), 'C001', 'Inexistente', '12345678', '2026-01', 100.00, 'BD', UUID_TO_BIN(UUID()), 'llave-pago-serv-002', REPEAT('m', 64), 'pruebas', @uuid, @repetido)"),
+  'BNA-OPERADOR-NO-EXISTE', 'procedimiento');
+
+-- 9. Idempotencia
+CALL prueba.verifica('X680', 'Billetera', 'Idempotencia', 'Repetición idempotente con la misma llave (pago QR)',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('cccccccc-cccc-4ccc-8ccc-cccccccccccd'), '20700000099', 'Comercio Idem', 'CTA-PEN-1', 'pruebas', @idc),
+             CALL billetera.crear_qr(UUID_TO_BIN('dddddddd-dddd-4ddd-8ddd-dddddddddddd'), @idc, NULL, 'ESTATICO', NULL, NULL, 'pruebas', @idqr),
+             SET @s0o = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2'),
+             SET @s0d = (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1'),
+             CALL billetera.pagar_qr(UUID_TO_BIN('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeef'), @idqr, NULL, 60.00, 'BD', UUID_TO_BIN(UUID()), 'llave-idem-001', REPEAT('n', 64), 'pruebas', @uuid1, @r1),
+             CALL billetera.pagar_qr(UUID_TO_BIN('ffffffff-ffff-4fff-8fff-ffffffffffff'), @idqr, NULL, 60.00, 'BD', UUID_TO_BIN(UUID()), 'llave-idem-001', REPEAT('n', 64), 'pruebas', @uuid2, @r2)"),
+  "SELECT @r2 = 1 AND @uuid1 = @uuid2 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-2') = @s0o - 60 AND (SELECT saldo_contable FROM cuentas.cuenta_ahorro WHERE num_cuenta = 'CTA-PEN-1') = @s0d + 60",
+  'idempotente: mismo uuid', "SELECT CONCAT(@r2, ', ', HEX(@uuid1), ' = ', HEX(@uuid2))", 'procedimiento');
+
+CALL prueba.rechaza('X681', 'Billetera', 'Idempotencia', 'Llave reutilizada con otro contenido (pago QR)',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('11111111-1111-4111-8111-111111111114'), '20800000099', 'Comercio Idem2', 'CTA-PEN-1', 'pruebas', @idc),
+             CALL billetera.crear_qr(UUID_TO_BIN('22222222-2222-4222-8222-222222222224'), @idc, NULL, 'ESTATICO', NULL, NULL, 'pruebas', @idqr),
+             CALL billetera.pagar_qr(UUID_TO_BIN('33333333-3333-4333-8333-333333333335'), @idqr, NULL, 50.00, 'BD', UUID_TO_BIN(UUID()), 'llave-idem-002', REPEAT('o', 64), 'pruebas', @uuid1, @r1),
+             CALL billetera.pagar_qr(UUID_TO_BIN('44444444-4444-4444-8444-444444444446'), @idqr, NULL, 100.00, 'BD', UUID_TO_BIN(UUID()), 'llave-idem-002', REPEAT('p', 64), 'pruebas', @uuid2, @r2)"),
+  'BNA-IDEMPOTENCIA', 'procedimiento');
+
+-- 10. Fondos insuficientes
+CALL prueba.rechaza('X690', 'Billetera', 'Fondos', 'Pago QR con fondos insuficientes',
+  JSON_ARRAY("CALL billetera.registrar_comercio(UUID_TO_BIN('55555555-5555-4555-8555-555555555558'), '20900000099', 'Comercio Fondos', 'CTA-PEN-1', 'pruebas', @idc),
+             CALL billetera.crear_qr(UUID_TO_BIN('66666666-6666-4666-8666-666666666668'), @idc, NULL, 'ESTATICO', NULL, NULL, 'pruebas', @idqr),
+             CALL billetera.pagar_qr(UUID_TO_BIN('77777777-7777-4777-8777-77777777777a'), @idqr, NULL, 999999.00, 'BD', UUID_TO_BIN(UUID()), 'llave-fondos-001', REPEAT('q', 64), 'pruebas', @uuid, @repetido)"),
+  'BNA-SALDO', 'procedimiento');
+
+-- 11. Vistas _api
+CALL prueba.verifica('X700', 'Billetera', 'Vistas API', 'Vista v_comercio_api existe y es legible por bna_api',
+  JSON_ARRAY("SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_comercio_api'"),
+  '1', '1', "SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_comercio_api'", 'declarativo');
+
+CALL prueba.verifica('X701', 'Billetera', 'Vistas API', 'Vista v_qr_api existe',
+  JSON_ARRAY("SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_qr_api'"),
+  '1', '1', "SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_qr_api'", 'declarativo');
+
+CALL prueba.verifica('X702', 'Billetera', 'Vistas API', 'Vista v_solicitud_cobro_api existe',
+  JSON_ARRAY("SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_solicitud_cobro_api'"),
+  '1', '1', "SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_solicitud_cobro_api'", 'declarativo');
+
+CALL prueba.verifica('X703', 'Billetera', 'Vistas API', 'Vista v_notificacion_api existe',
+  JSON_ARRAY("SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_notificacion_api'"),
+  '1', '1', "SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_notificacion_api'", 'declarativo');
+
+CALL prueba.verifica('X704', 'Billetera', 'Vistas API', 'Vista v_operador_servicio_api existe',
+  JSON_ARRAY("SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_operador_servicio_api'"),
+  '1', '1', "SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'billetera' AND table_name = 'v_operador_servicio_api'", 'declarativo');
