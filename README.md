@@ -294,6 +294,63 @@ Solo agrega un procedimiento: una base anterior necesita un volumen nuevo para t
 desde el mes en curso, todos abiertos, el BIN 004499, una agencia, un terminal por canal y un cliente, para que una base nueva
 pueda hacer un depósito. No va en producción.
 
+### Billetera Digital Chaski (desde `bd-v1.9-mysql`)
+
+La Billetera Digital "Chaski" extiende el CORE con un esquema `billetera` y una tabla
+`clientes.credencial_cliente` para el canal BD (Billetera Digital).
+
+#### 1. Credencial de cliente para el canal BD
+Tabla `clientes.credencial_cliente`: cliente, celular único, hash+sal del PIN de 6 dígitos
+(SHA2+sal, igual que `tarjetas.credencial`), intentos, bloqueo al tercer intento, estado.
+Procedimientos:
+- `clientes.registrar_credencial_cliente`: registra o cambia el PIN (cliente debe existir y poder operar; NO crea clientes, R-01).
+- `clientes.validar_credencial_cliente`: valida PIN por celular, devuelve cod_cliente o falla, cuenta intentos, bloquea al tercer fallo.
+El celular y el PIN nunca aparecen en mensajes de error ni en auditoría en claro (se enmascara el celular).
+
+#### 2. Esquema `billetera`
+Tablas (fuera del modelo normalizado, decisión pendiente del equipo):
+- `comercio`: afiliación (RUC, razón social, cuenta de abono = `cuentas.cuenta` existente, estado).
+- `codigo_qr`: de un comercio (estático, sin monto) o de un cliente (dinámico, monto fijo, vigencia).
+- `pago_qr`: pagos escaneando QR.
+- `solicitud_cobro`: cliente a cliente por celular (PENDIENTE/PAGADA/RECHAZADA/VENCIDA).
+- `notificacion`: notificaciones push.
+- `operador_servicio` + `recarga`/`pago_servicio`: catálogo de operadores y servicios.
+FUERA del alcance (decisión pendiente): tienda, productos, promociones, cupones, ofertas, órdenes.
+
+#### 3. Movimiento de dinero
+Todo movimiento usa `cuentas.registrar_transferencia` / `cuentas.registrar_movimiento`
+con canal `BD` y llave de idempotencia obligatoria. NUNCA saldo paralelo ni INSERT directo a `cuentas.movimiento`.
+Bloqueo de filas (`FOR UPDATE`) sobre QR/solicitud para evitar pagos dobles.
+Auditoría integrada.
+
+#### 4. Vistas `_api` y permisos
+Vistas de lectura: `v_comercio_api`, `v_qr_api`, `v_solicitud_cobro_api`, `v_notificacion_api`, `v_operador_servicio_api`.
+`GRANT EXECUTE`/`SELECT` a `bna_api` (y `bna_app` para pruebas).
+
+#### 5. Catálogo
+Módulo `BILLETERA` (id 10) en `core.modulo` (solo en extensión, no en modelo normalizado).
+Tipo de operación `FONDEO_BILLETERA` ya existía en `cuentas.tipo_operacion`.
+Canal `BD` ya existía en `core.canal` (con fila en `core.limite_canal` deshabilitada: `RN-BD-002`).
+
+#### 6. Pruebas nuevas (IDs X600-X699)
+Registrar/validar credencial (bloqueo 3er intento, celular duplicado, cliente inexistente).
+Pago QR feliz, QR vencido, doble pago QR, idempotencia, fondos insuficientes.
+Solicitud de cobro: crear, celular no registrado, autosolicitud, pago, doble pago.
+Transferencia P2P por celular: feliz, celular no registrado, autotransferencia.
+Recarga celular: feliz, operador inexistente, monto no permitido.
+Pago servicio: feliz, operador inexistente.
+Idempotencia: repetición misma llave, llave reutilizada con otros parámetros.
+Fondos insuficientes.
+Concurrencia X650: dos pagos simultáneos misma solicitud con llaves distintas → uno solo debita (patrón X508). Verifica que FALLA sin `FOR UPDATE`.
+
+#### Decisiones pendientes (anotadas en documento de decisiones)
+- Tienda, productos, promociones, cupones, ofertas, órdenes: FUERA (equipo no decidió).
+- Modelo de clientes/cuentas/transferencias: se usa el existente (R-01).
+
+`sql/bna_datos_dev.sql` es **solo para desarrollo**: los periodos contables de 24 meses
+desde el mes en curso, todos abiertos, el BIN 004499, una agencia, un terminal por canal y un cliente, para que una base nueva
+pueda hacer un depósito. No va en producción.
+
 ## Brechas conocidas
 
 Lo que MySQL no puede hacer cumplir a la base. Cada brecha tiene una prueba

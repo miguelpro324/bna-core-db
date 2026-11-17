@@ -78,6 +78,49 @@ X504	bna_app_user	Repetir con la misma llave sobre autorización ya confirmada e
 X505	bna_app_user	No se confirma una autorización rechazada	pasa
 X506	bna_app_user	Extorno tras confirmar falla (el extorno es solo sin movimiento)	pasa
 X507	bna_app_user	No se confirma una autorización INICIADA (sin haber pasado a AUTORIZADA)	pasa
+X600	bna_app_user	Registrar credencial: cliente inexistente	pasa
+X601	bna_app_user	Registrar credencial: cliente no puede operar (BLOQUEADO)	pasa
+X602	bna_app_user	Registrar credencial: celular ya registrado	pasa
+X603	bna_app_user	Registrar credencial: PIN inválido (no 6 dígitos)	pasa
+X604	bna_app_user	Registrar credencial feliz	pasa
+X605	bna_app_user	Validar credencial: PIN correcto	pasa
+X606	bna_app_user	Validar credencial: PIN incorrecto cuenta intento	pasa
+X607	bna_app_user	Tercer fallo bloquea la credencial	pasa
+X608	bna_app_user	Credencial bloqueada no se valida	pasa
+X610	bna_app_user	bna_app no escribe comercios	pasa
+X611	bna_app_user	Registrar comercio feliz	pasa
+X612	bna_app_user	Comercio: RUC duplicado	pasa
+X613	bna_app_user	Comercio: cuenta de abono inexistente	pasa
+X620	bna_app_user	bna_app no escribe códigos QR	pasa
+X621	bna_app_user	QR estático de comercio	pasa
+X622	bna_app_user	QR dinámico de cliente con monto fijo	pasa
+X623	bna_app_user	QR: ni comercio ni cuenta	pasa
+X624	bna_app_user	QR estático con monto no permitido	pasa
+X625	bna_app_user	QR dinámico sin monto	pasa
+X630	bna_app_user	Pagar QR comercio feliz con saldos	falla
+X631	bna_app_user	QR vencido	pasa
+X632	bna_app_user	Pagar dos veces el mismo QR dinámico (segunda falla)	falla
+X640	bna_app_user	Crear solicitud de cobro feliz	pasa
+X641	bna_app_user	Solicitud: celular no registrado en billetera	pasa
+X642	bna_app_user	Solicitud: no puedes cobrarte a ti mismo	pasa
+X643	bna_app_user	Pagar solicitud de cobro feliz	falla
+X644	bna_app_user	Pagar dos veces la misma solicitud (segunda falla)	falla
+X650	bna_app_user	Transferencia P2P por celular feliz	falla
+X651	bna_app_user	P2P: celular no registrado	pasa
+X652	bna_app_user	P2P: no te puedes transferir a ti mismo	pasa
+X660	bna_app_user	Recarga celular feliz	falla
+X661	bna_app_user	Recarga: operador no existe	pasa
+X662	bna_app_user	Recarga: monto no permitido	pasa
+X670	bna_app_user	Pago de servicio feliz	falla
+X671	bna_app_user	Pago servicio: operador no existe	pasa
+X680	bna_app_user	Repetición idempotente con la misma llave (pago QR)	falla
+X681	bna_app_user	Llave reutilizada con otro contenido (pago QR)	pasa
+X690	bna_app_user	Pago QR con fondos insuficientes	falla
+X700	bna_app_user	Vista v_comercio_api existe y es legible por bna_api	pasa
+X701	bna_app_user	Vista v_qr_api existe	pasa
+X702	bna_app_user	Vista v_solicitud_cobro_api existe	pasa
+X703	bna_app_user	Vista v_notificacion_api existe	pasa
+X704	bna_app_user	Vista v_operador_servicio_api existe	pasa
 X110	bna_api_user	bna_api no puede: SELECT tarjetas.credencial	pasa
 X111	bna_api_user	bna_api no puede: SELECT tarjetas.matriz_token	pasa
 X112	bna_api_user	bna_api no puede: SELECT tarjetas.matriz_coordenada	pasa
@@ -339,6 +382,7 @@ X207	bna_admin_user	bna_admin ejecuta los procedimientos de clientes por su priv
 X342	bna_admin_user	bna_admin ejecuta los procedimientos de créditos	pasa
 X508	bna_app_user	Dos confirmaciones simultáneas con llaves distintas: la segunda falla con BNA-CONFIRMACION	pasa
 X509	bna_app_user	Dos confirmaciones simultáneas con la misma llave: la segunda es idempotente	pasa
+X650	bna_app_user	Dos pagos simultáneos de la misma solicitud con llaves distintas: la segunda falla con BNA-SOLICITUD-YA-PAGADA	falla
 X234	bna_app_user	Dos registros simultáneos con el mismo correo dejan un solo cliente	pasa
 X70	bna_api_user	Una transferencia a una cuenta bloqueada no deja nada (C1)	pasa
 X71	bna_api_user	Repetir la llave tras un fallo no informa éxito (C1)	pasa

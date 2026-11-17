@@ -192,6 +192,12 @@ INSERT INTO core.equivalencia_catalogo (catalogo, valor_api, valor_bd) VALUES
     ('estado_tarjeta', 'ANULADA', 'CANCELADA'),
     ('origen_cambio', 'BANCO', 'OPERADOR');
 
+-- Modulo BILLETERA (v1.9): se agrega aqui porque el modelo normalizado no lo tiene;
+-- en core.sql queda solo hasta SEGURIDAD (id 9).
+INSERT INTO core.modulo (id_modulo, nombre) VALUES
+    (10, 'BILLETERA')
+AS nueva ON DUPLICATE KEY UPDATE nombre = nueva.nombre;
+
 -- Cuentas contables de los asientos de cuentas.aplicar_movimiento.
 INSERT INTO core.cuenta_contable VALUES
     ('1101', 'Caja', 'DEUDORA', NULL), ('2101', 'Depósitos de ahorro', 'ACREEDORA', NULL) AS nueva
@@ -253,10 +259,10 @@ BEGIN
     DECLARE v_propia BOOLEAN DEFAULT FALSE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -264,7 +270,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -273,7 +279,7 @@ BEGIN
         VALUES (p_id, p_username, p_nombre, p_rol, p_hash, p_algoritmo, p_version, p_id_empleado, p_activo);
         CALL core.registrar_evento('CORE', 'usuario_sistema', BIN_TO_UUID(p_id), 'CREAR_USUARIO', p_actor, NULL,
                                    JSON_OBJECT('username', p_username, 'rol', p_rol));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -285,10 +291,10 @@ BEGIN
     DECLARE v_anterior VARCHAR(15);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -296,7 +302,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -307,7 +313,7 @@ BEGIN
             CALL core.registrar_evento('CORE', 'usuario_sistema', BIN_TO_UUID(p_id), 'ASIGNAR_ROLES', p_actor, NULL,
                                        JSON_OBJECT('rol_anterior', v_anterior, 'rol_nuevo', p_rol));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -320,10 +326,10 @@ BEGIN
     DECLARE v_propia BOOLEAN DEFAULT FALSE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -331,7 +337,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -345,7 +351,7 @@ BEGIN
                                        JSON_OBJECT('algoritmo_anterior', p_algoritmo_anterior,
                                                    'algoritmo_nuevo', p_algoritmo));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -436,10 +442,10 @@ BEGIN
     DECLARE v_abono BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -447,7 +453,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -464,7 +470,7 @@ BEGIN
             CALL core.registrar_evento('CUENTAS', 'movimiento', BIN_TO_UUID(p_uuid), p_tipo, p_actor, p_correlation_id,
                                        JSON_OBJECT('num_cuenta', p_cuenta, 'monto', p_monto, 'canal', p_canal));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -483,10 +489,10 @@ BEGIN
     DECLARE v_moneda_1, v_moneda_2 CHAR(3);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -494,7 +500,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -530,7 +536,7 @@ BEGIN
                                        JSON_OBJECT('origen', p_origen, 'destino', p_destino, 'monto', p_monto,
                                                    'canal', p_canal, 'uuid_abono', BIN_TO_UUID(p_abono)));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -544,10 +550,10 @@ BEGIN
     DECLARE v_n, v_distintos, v_aptos INT;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -555,7 +561,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -591,7 +597,7 @@ BEGIN
           FROM JSON_TABLE(p_titulares, '$[*]' COLUMNS (cod_cliente VARCHAR(12) PATH '$')) AS t;
         CALL core.registrar_evento('CUENTAS', 'cuenta_ahorro', p_num_cuenta, 'ABRIR_CUENTA', p_actor, NULL,
                                    JSON_OBJECT('regimen', p_regimen, 'titulares', p_titulares));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -605,10 +611,10 @@ BEGIN
     DECLARE v_estado VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -616,7 +622,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -634,7 +640,7 @@ BEGIN
         INSERT INTO tarjetas.tarjeta_cuenta (id_tarjeta, num_cuenta, es_principal) VALUES (p_id, p_num_cuenta, TRUE);
         CALL core.registrar_evento('CORE', 'tarjeta', BIN_TO_UUID(p_id), 'EMITIR_TARJETA', p_actor, NULL,
                                    JSON_OBJECT('cod_cliente', p_cod_cliente, 'num_cuenta', p_num_cuenta));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -647,10 +653,10 @@ BEGIN
     DECLARE v_anterior VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -658,7 +664,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -678,7 +684,7 @@ BEGIN
         CALL core.registrar_evento('CORE', 'tarjeta', BIN_TO_UUID(p_id), 'CAMBIAR_ESTADO_TARJETA', p_actor, NULL,
                                    JSON_OBJECT('estado_anterior', v_anterior, 'estado_nuevo', p_estado,
                                                'origen', p_origen, 'id_historial', p_id_historial));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -690,10 +696,10 @@ BEGIN
     DECLARE v_anterior VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -701,7 +707,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -714,7 +720,7 @@ BEGIN
         SET p_id_historial = LAST_INSERT_ID();
         CALL core.registrar_evento('CORE', 'tarjeta', BIN_TO_UUID(p_id), 'DESBLOQUEAR_TARJETA', p_actor, NULL,
                                    JSON_OBJECT('estado_anterior', v_anterior, 'id_historial', p_id_historial));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -739,10 +745,10 @@ BEGIN
     DECLARE v_motivo VARCHAR(255);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -750,7 +756,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -818,7 +824,7 @@ BEGIN
                                                          'num_cuenta', p_num_cuenta, 'estado', p_estado,
                                                          'codigo_respuesta', p_codigo));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -834,10 +840,10 @@ BEGIN
     DECLARE v_trx BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -845,7 +851,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -867,7 +873,7 @@ BEGIN
                                        NULL, JSON_OBJECT('estado_anterior', v_anterior, 'motivo', p_motivo));
         END IF;
         SET p_estado = 'EXTORNADA';
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -908,10 +914,10 @@ BEGIN
     DECLARE v_aut_canal VARCHAR(5);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     bna_confirmar: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -919,7 +925,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -945,7 +951,7 @@ BEGIN
                 CALL core.fallar('BNA-IDEMPOTENCIA: la llave se usó en otra operación');
             END IF;
             SET p_estado = 'DISPENSADA';
-            IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+            IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
             LEAVE bna_confirmar;
         END IF;
         -- Solo se confirma una autorización vigente (AUTORIZADA o DISPENSADA) sin movimiento.
@@ -998,7 +1004,7 @@ BEGIN
                                    v_correlation_id, JSON_OBJECT('estado_anterior', v_anterior, 'tipo_operacion', v_tipo_operacion,
                                                                  'monto', v_monto, 'num_cuenta', v_num_cuenta));
         SET p_estado = 'DISPENSADA';
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1032,10 +1038,10 @@ BEGIN
     DECLARE v_sal CHAR(32);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1043,7 +1049,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1062,7 +1068,7 @@ BEGIN
                                 fecha_ultimo_cambio = UTC_TIMESTAMP(6);
         CALL core.registrar_evento('CORE', 'credencial', BIN_TO_UUID(p_id_tarjeta), 'REGISTRAR_CREDENCIAL', p_actor,
                                    NULL, JSON_OBJECT('tipo_credencial', p_tipo));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1081,10 +1087,10 @@ BEGIN
     DECLARE v_sal CHAR(32);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1092,7 +1098,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1119,7 +1125,7 @@ BEGIN
         CALL core.registrar_evento('CORE', 'credencial', BIN_TO_UUID(p_id_tarjeta), 'VALIDAR_CREDENCIAL', p_actor,
                                    p_correlacion, JSON_OBJECT('tipo_credencial', p_tipo, 'resultado', p_resultado,
                                                               'intentos_restantes', p_intentos_restantes));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1199,10 +1205,10 @@ BEGIN
     DECLARE v_propia BOOLEAN DEFAULT FALSE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1210,7 +1216,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1219,7 +1225,7 @@ BEGIN
         VALUES (p_id, p_username, p_nombre, 'SERVICIO', p_hash, p_algoritmo, p_version, TRUE, p_modulo);
         CALL core.registrar_evento('CORE', 'usuario_sistema', BIN_TO_UUID(p_id), 'CREAR_USUARIO_SERVICIO', p_actor,
                                    NULL, JSON_OBJECT('username', p_username, 'modulo', p_modulo));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1233,10 +1239,10 @@ BEGIN
     DECLARE v_rol VARCHAR(15);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1244,7 +1250,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1261,7 +1267,7 @@ BEGIN
         SET p_filas = ROW_COUNT();
         CALL core.registrar_evento('CORE', 'usuario_sistema', BIN_TO_UUID(p_id), 'RENOVAR_CREDENCIAL', p_actor, NULL,
                                    JSON_OBJECT('algoritmo', p_algoritmo));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1274,10 +1280,10 @@ BEGIN
     DECLARE v_activo BOOLEAN;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1285,7 +1291,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1303,7 +1309,7 @@ BEGIN
             CALL core.registrar_evento('CORE', 'usuario_sistema', BIN_TO_UUID(p_id),
                                        IF(p_activo, 'ACTIVAR_USUARIO', 'DESACTIVAR_USUARIO'), p_actor, NULL, NULL);
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1319,10 +1325,10 @@ BEGIN
     DECLARE v_activo BOOLEAN;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1330,7 +1336,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1341,7 +1347,7 @@ BEGIN
         END IF;
         CALL core.registrar_evento('CORE', 'usuario_sistema', BIN_TO_UUID(p_id), 'LOGIN', v_username, p_correlation_id,
                                    JSON_OBJECT('rol', v_rol, 'modulo', v_modulo));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1387,10 +1393,10 @@ BEGIN
     DECLARE v_correo VARCHAR(150) DEFAULT LOWER(TRIM(p_correo));
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1398,7 +1404,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1443,7 +1449,7 @@ BEGIN
                                    JSON_OBJECT('tipo_documento', p_tipo_documento,
                                                'estado_habilitante', p_estado_habilitante,
                                                'version_contrato', TRIM(p_version_contrato)));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1470,10 +1476,10 @@ BEGIN
     DECLARE v_estado VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1481,7 +1487,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1512,7 +1518,7 @@ BEGIN
                                                'identidad_verificada', p_identidad_verificada IS TRUE,
                                                'resultado', p_resultado, 'motivo_llamador', p_motivo,
                                                'motivo_core', p_motivo_core));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1526,10 +1532,10 @@ BEGIN
     DECLARE v_propia BOOLEAN DEFAULT FALSE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1537,7 +1543,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1560,7 +1566,7 @@ BEGIN
                                    p_correlation_id,
                                    JSON_OBJECT('cod_cliente', p_cod_cliente, 'tipo_validacion', p_tipo_validacion,
                                                'resultado', p_resultado, 'motivo', p_motivo));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1576,10 +1582,10 @@ BEGIN
     DECLARE v_propia BOOLEAN DEFAULT FALSE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -1587,7 +1593,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -1611,7 +1617,7 @@ BEGIN
                                        JSON_OBJECT('estado_anterior', p_anterior, 'estado_nuevo', p_estado,
                                                    'motivo', TRIM(p_motivo)));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -1917,16 +1923,16 @@ BEGIN
     DECLARE v_cal BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2040,7 +2046,7 @@ BEGIN
                                                    'monto', p_monto, 'moneda', p_moneda, 'plazo_meses', p_plazo));
         END IF;
         SET p_id_evaluacion = creditos.fn_id_evaluacion(p_id_solicitud, p_ronda);
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2061,16 +2067,16 @@ BEGIN
     DECLARE v_consulta BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2127,7 +2133,7 @@ BEGIN
                                    JSON_OBJECT('id_solicitud', BIN_TO_UUID(p_id_solicitud), 'ronda', v_ronda,
                                                'regla', p_regla, 'resultado', p_resultado, 'score', p_score,
                                                'limite', p_limite));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2148,16 +2154,16 @@ BEGIN
     DECLARE v_analista VARCHAR(10);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2203,7 +2209,7 @@ BEGIN
                                    p_correlation_id,
                                    JSON_OBJECT('id_solicitud', BIN_TO_UUID(v_sol), 'decision', p_decision,
                                                'id_analista', v_analista));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2223,16 +2229,16 @@ BEGIN
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_fin = TRUE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2272,7 +2278,7 @@ BEGIN
         CALL core.registrar_evento('EVALUACION', 'solicitud_credito', BIN_TO_UUID(p_id_solicitud), 'REVOCAR_APROBACION',
                                    p_actor, p_correlation_id,
                                    JSON_OBJECT('motivo', TRIM(p_motivo), 'ordenes_rechazadas', coalesce(v_ordenes, JSON_ARRAY())));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2286,16 +2292,16 @@ BEGIN
     DECLARE v_nombre VARCHAR(100);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2308,7 +2314,7 @@ BEGIN
         INSERT INTO creditos.analista (id_analista, nombre, codigo_empleado) VALUES (p_id_analista, v_nombre, v_codigo);
         CALL core.registrar_evento('EVALUACION', 'analista', p_id_analista, 'REGISTRAR_ANALISTA', p_actor, NULL,
                                    JSON_OBJECT('codigo_empleado', v_codigo));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2330,16 +2336,16 @@ BEGIN
     DECLARE v_numero BIGINT;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2383,7 +2389,7 @@ BEGIN
                                                    JSON_OBJECT('codigo_orden', p_codigo, 'id_evaluacion', BIN_TO_UUID(p_id_evaluacion),
                                                                'importe', v_monto, 'canal', p_canal));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2399,16 +2405,16 @@ BEGIN
     DECLARE v_moneda CHAR(3);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2433,7 +2439,7 @@ BEGIN
         CALL creditos.registrar_evento_credito('ORDEN', BIN_TO_UUID(p_id_orden), NULL, 'CAMBIAR_CUENTA', p_estado, 13,
                                                p_actor, p_correlation_id,
                                                JSON_OBJECT('cuenta', CONCAT('terminada en ', RIGHT(p_num_cuenta, 4))));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2451,16 +2457,16 @@ BEGIN
     DECLARE v_cliente VARCHAR(12);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2497,7 +2503,7 @@ BEGIN
         CALL creditos.registrar_evento_credito('ORDEN', BIN_TO_UUID(p_id_orden), NULL, 'VALIDAR_ORDEN', p_resultado, 13,
                                                p_actor, p_correlation_id,
                                                JSON_OBJECT('tipo', p_tipo, 'estado_orden', p_estado));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2527,16 +2533,16 @@ BEGIN
     DECLARE v_numero BIGINT;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2613,7 +2619,7 @@ BEGIN
                                                    p_actor, p_correlation_id,
                                                    JSON_OBJECT('codigo_orden', v_codigo, 'id_calendario', BIN_TO_UUID(v_oficial)));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2626,16 +2632,16 @@ BEGIN
     DECLARE v_estado VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2655,7 +2661,7 @@ BEGIN
          WHERE id_orden = p_id_orden;
         CALL creditos.registrar_evento_credito('ORDEN', BIN_TO_UUID(p_id_orden), NULL, 'RECHAZAR_ORDEN', 'RECHAZADA', 13,
                                                p_actor, p_correlation_id, JSON_OBJECT('motivo', TRIM(p_motivo)));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2684,16 +2690,16 @@ BEGIN
     DECLARE v_estado_credito VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2779,7 +2785,7 @@ BEGIN
                                                                'monto', p_monto, 'aplicado', p_aplicado, 'canal', p_canal,
                                                                'motivo', p_motivo));
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2796,16 +2802,16 @@ BEGIN
     DECLARE v_saldo DECIMAL(15,2);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2828,7 +2834,7 @@ BEGIN
                                                'REGISTRAR_MORA', NULL, 14, p_actor, p_correlation_id,
                                                JSON_OBJECT('monto', p_monto,
                                                            'dias_atraso', DATEDIFF(core.fn_fecha_negocio(UTC_TIMESTAMP(6)), v_vencimiento)));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -2846,16 +2852,16 @@ BEGIN
     DECLARE v_cuotas, v_creditos JSON;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -2904,7 +2910,7 @@ BEGIN
         SELECT 14, j.cod, 'ACTUALIZAR_ESTADO', j.estado, p_actor, v_correlacion, JSON_OBJECT('fecha', v_fecha)
           FROM JSON_TABLE(coalesce(v_creditos, JSON_ARRAY()), '$[*]' COLUMNS (
                    cod VARCHAR(20) PATH '$.cod', estado VARCHAR(25) PATH '$.estado')) j;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -3156,10 +3162,10 @@ BEGIN
     DECLARE v_empleado BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3167,7 +3173,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3202,7 +3208,7 @@ BEGIN
         CALL core.registrar_evento('CORE', 'empleado', BIN_TO_UUID(p_id), 'REGISTRAR_EMPLEADO', p_actor, NULL,
                                    JSON_OBJECT('codigo_empleado', v_codigo, 'cargo', v_cargo,
                                                'id_usuario', IF(p_id_usuario IS NULL, NULL, BIN_TO_UUID(p_id_usuario))));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -3527,10 +3533,10 @@ BEGIN
     DECLARE v_correo VARCHAR(150) DEFAULT LOWER(TRIM(p_correo));
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3538,7 +3544,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3581,7 +3587,7 @@ BEGIN
         CALL core.registrar_evento('CLIENTES', 'solicitante_captacion', BIN_TO_UUID(p_id), 'REGISTRAR_SOLICITANTE', p_actor,
                                    p_correlation_id, JSON_OBJECT('tipo_documento', p_tipo_documento));
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 CREATE DEFINER = 'bna_owner'@'%' PROCEDURE clientes.abrir_caso_captacion(
@@ -3593,10 +3599,10 @@ BEGIN
     DECLARE v_existe BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3604,7 +3610,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3629,7 +3635,7 @@ BEGIN
         CALL core.registrar_evento('CLIENTES', 'caso_captacion', BIN_TO_UUID(p_id), 'ABRIR_CASO', p_actor, p_correlation_id,
                                    JSON_OBJECT('id_solicitante', BIN_TO_UUID(p_id_solicitante), 'canal', p_canal));
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- Vale el último consentimiento de cada tipo; la versión se guarda solo en TERMINOS.
@@ -3644,10 +3650,10 @@ BEGIN
     DECLARE v_version VARCHAR(10) DEFAULT NULLIF(TRIM(p_version_terminos), '');
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3655,7 +3661,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3686,7 +3692,7 @@ BEGIN
                                                       aceptado JSON PATH '$.aceptado')) j));
         CALL clientes.recalcular_caso_captacion(p_id_caso, p_estado);
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- El vencimiento sale de clientes.tipo_contacto (SMS o CORREO).
@@ -3701,10 +3707,10 @@ BEGIN
     DECLARE v_ahora DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3712,7 +3718,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3734,7 +3740,7 @@ BEGIN
         CALL core.registrar_evento('CLIENTES', 'caso_captacion', BIN_TO_UUID(p_id_caso), 'ENVIAR_OTP', p_actor, p_correlation_id,
                                    JSON_OBJECT('canal', p_canal, 'id_otp', BIN_TO_UUID(p_id_otp)));
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- El código errado suma un intento y el último (max_intentos de clientes.tipo_contacto)
@@ -3754,10 +3760,10 @@ BEGIN
     DECLARE v_expira DATETIME(6);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3765,7 +3771,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3802,7 +3808,7 @@ BEGIN
                                    JSON_OBJECT('canal', v_canal, 'resultado', 'FALLIDO', 'intentos', v_intentos));
         END IF;
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- RENIEC, listas restrictivas, PEP o biometría, del proveedor o de una revisión manual
@@ -3817,10 +3823,10 @@ BEGIN
     DECLARE v_estado VARCHAR(15);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3828,7 +3834,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3850,7 +3856,7 @@ BEGIN
                                    JSON_OBJECT('tipo', p_tipo, 'resultado', p_resultado, 'proveedor', TRIM(p_proveedor)));
         CALL clientes.recalcular_caso_captacion(p_id_caso, p_estado);
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 CREATE DEFINER = 'bna_owner'@'%' PROCEDURE clientes.registrar_consulta_riesgo_captacion(
@@ -3863,10 +3869,10 @@ BEGIN
     DECLARE v_estado VARCHAR(15);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3874,7 +3880,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3894,7 +3900,7 @@ BEGIN
                                    JSON_OBJECT('central', p_central, 'calificacion', p_calificacion, 'fuente', p_fuente));
         CALL clientes.recalcular_caso_captacion(p_id_caso, p_estado);
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- Un perfil MUY_ALTO rechaza el caso.
@@ -3908,10 +3914,10 @@ BEGIN
     DECLARE v_base BIGINT;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3919,7 +3925,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3938,7 +3944,7 @@ BEGIN
                                    JSON_OBJECT('puntaje', p_puntaje, 'calificacion', p_calificacion));
         CALL clientes.recalcular_caso_captacion(p_id_caso, p_estado);
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- Revocar retira una habilitación vigente; lo demás exige un caso abierto. La
@@ -3953,10 +3959,10 @@ BEGIN
     DECLARE v_motivo VARCHAR(255) DEFAULT TRIM(p_motivo);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -3964,7 +3970,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -3992,7 +3998,7 @@ BEGIN
                                    JSON_OBJECT('motivo', v_motivo));
         CALL clientes.recalcular_caso_captacion(p_id_caso, p_estado);
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- El cliente lo registra (o lo encuentra) quien verificó la identidad, por
@@ -4012,10 +4018,10 @@ BEGIN
     DECLARE v_estado_cli VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -4023,7 +4029,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4061,7 +4067,7 @@ BEGIN
         CALL core.registrar_evento('CLIENTES', 'caso_captacion', BIN_TO_UUID(p_id_caso), 'VINCULAR_CLIENTE', p_actor, p_correlation_id,
                                    JSON_OBJECT('cod_cliente', p_cod_cliente, 'cliente_nuevo', p_cliente_nuevo IS TRUE));
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 -- La referencia queda vigente p_vigencia_dias desde la fecha de negocio de hoy (Lima).
@@ -4082,10 +4088,10 @@ BEGIN
     DECLARE v_i TINYINT DEFAULT 1;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     proc_cuerpo: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
@@ -4093,7 +4099,7 @@ BEGIN
             -- RESIGNAL queda fuera del alcance de este manejador, o se descartaría.
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4145,7 +4151,7 @@ BEGIN
         CALL core.registrar_evento('CLIENTES', 'caso_captacion', BIN_TO_UUID(p_id_caso), 'HABILITAR', p_actor, p_correlation_id,
                                    JSON_OBJECT('cod_cliente', v_cliente, 'vigente_hasta', DATE_FORMAT(v_fecha + INTERVAL p_vigencia_dias DAY, '%Y-%m-%d')));
     END;
-    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
 END //
 
 DELIMITER ;
@@ -4245,6 +4251,8 @@ CREATE TABLE clientes.credencial_cliente (
 -- ---------------------------------------------------------------------
 CREATE DATABASE IF NOT EXISTS billetera CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs;
 GRANT ALL PRIVILEGES ON billetera.* TO 'bna_owner'@'%';
+GRANT SELECT ON billetera.* TO 'bna_app'@'%';
+GRANT SELECT ON billetera.* TO 'bna_app'@'%';
 
 CREATE TABLE billetera.comercio (
     id_comercio       BINARY(16) NOT NULL DEFAULT (CONCAT(RANDOM_BYTES(6), CHAR(0x40 | (ASCII(RANDOM_BYTES(1)) & 0x0F)), RANDOM_BYTES(1), CHAR(0x80 | (ASCII(RANDOM_BYTES(1)) & 0x3F)), RANDOM_BYTES(7))),
@@ -4420,16 +4428,16 @@ BEGIN
     DECLARE v_existente VARCHAR(12);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4454,7 +4462,7 @@ BEGIN
         -- Enmascara el celular en la auditoría: muestra solo últimos 3 dígitos
         CALL core.registrar_evento('CLIENTES', 'credencial_cliente', p_cod_cliente, 'REGISTRAR_CREDENCIAL_BD', p_actor,
                                    NULL, JSON_OBJECT('celular_enmascarado', CONCAT('******', RIGHT(p_celular, 3))));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4474,16 +4482,16 @@ BEGIN
     DECLARE v_cod VARCHAR(12);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4520,7 +4528,7 @@ BEGIN
                                    NULL, JSON_OBJECT('celular_enmascarado', CONCAT('******', RIGHT(p_celular, 3)),
                                                        'resultado', IF(p_cod_cliente IS NULL, 'FALLIDO', 'EXITOSO'),
                                                        'intentos_restantes', p_intentos_restantes));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4534,16 +4542,16 @@ BEGIN
     DECLARE v_estado VARCHAR(25);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4555,7 +4563,7 @@ BEGIN
         SET p_id = p_id_comercio;
         CALL core.registrar_evento('BILLETERA', 'comercio', BIN_TO_UUID(p_id_comercio), 'REGISTRAR_COMERCIO', p_actor,
                                    NULL, JSON_OBJECT('ruc', p_ruc, 'razon_social', p_razon_social));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4569,16 +4577,16 @@ BEGIN
     DECLARE v_propia BOOLEAN DEFAULT FALSE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4604,7 +4612,7 @@ BEGIN
                                    NULL, JSON_OBJECT('tipo', p_tipo, 'monto', p_monto,
                                                        'id_comercio', IFNULL(BIN_TO_UUID(p_id_comercio), ''),
                                                        'id_cuenta', COALESCE(p_id_cuenta, '')));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4626,16 +4634,16 @@ BEGIN
     DECLARE v_debito, v_abono BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     bna_pagar_qr: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4657,7 +4665,7 @@ BEGIN
         IF v_id_comercio IS NOT NULL THEN
             SELECT num_cuenta_abono INTO v_id_cuenta_destino FROM billetera.comercio WHERE id_comercio = v_id_comercio;
         END IF;
-        IF v_id_cuenta_origen = v_id_cuenta_destino THEN
+        IF p_id_cuenta_origen = v_id_cuenta_destino THEN
             CALL core.fallar('BNA-AUTOPAGO: no puedes pagar a tu propio QR');
         END IF;
         -- Para QR dinámico, verifica que no esté ya pagado
@@ -4673,24 +4681,24 @@ BEGIN
         CALL cuentas.reservar_llave(p_llave, p_huella, p_repetido, p_uuid_transaccion, v_abono);
         IF NOT p_repetido THEN
             -- Ejecuta la transferencia con canal BD
-            CALL cuentas.registrar_transferencia(v_id_cuenta_origen, v_id_cuenta_destino, v_monto_qr,
+            CALL cuentas.registrar_transferencia(p_id_cuenta_origen, v_id_cuenta_destino, v_monto_qr,
                                                  CONCAT('Pago QR ', BIN_TO_UUID(p_id_qr)), p_canal, p_correlation_id,
                                                  p_llave, p_huella, p_actor, v_debito, v_abono, p_repetido);
             IF NOT p_repetido THEN
                 SET p_uuid_transaccion = v_debito;
                 -- Registra el pago QR
                 INSERT INTO billetera.pago_qr (id_pago, id_qr, id_cuenta_origen, monto, uuid_transaccion)
-                VALUES (p_id_pago, p_id_qr, v_id_cuenta_origen, v_monto_qr, v_debito);
+                VALUES (p_id_pago, p_id_qr, p_id_cuenta_origen, v_monto_qr, v_debito);
                 -- Si es QR dinámico, márcalo como pagado
                 IF v_tipo = 'DINAMICO' THEN
                     UPDATE billetera.codigo_qr SET estado = 'PAGADO' WHERE id_qr = p_id_qr;
                 END IF;
                 CALL core.registrar_evento('BILLETERA', 'pago_qr', BIN_TO_UUID(p_id_pago), 'PAGAR_QR', p_actor,
                                            p_correlation_id, JSON_OBJECT('id_qr', BIN_TO_UUID(p_id_qr), 'monto', v_monto_qr,
-                                                                         'cuenta_origen', v_id_cuenta_origen, 'cuenta_destino', v_id_cuenta_destino));
+                                                                         'cuenta_origen', p_id_cuenta_origen, 'cuenta_destino', v_id_cuenta_destino));
             END IF;
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4706,16 +4714,16 @@ BEGIN
     DECLARE v_cod_solicitado VARCHAR(12);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4733,7 +4741,7 @@ BEGIN
         CALL core.registrar_evento('BILLETERA', 'solicitud_cobro', BIN_TO_UUID(p_id_solicitud), 'CREAR_SOLICITUD_COBRO', p_actor,
                                    p_correlation_id, JSON_OBJECT('cod_solicitante', p_cod_cliente_solicitante,
                                                                    'cod_solicitado', v_cod_solicitado, 'monto', p_monto));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4753,16 +4761,16 @@ BEGIN
     DECLARE v_debito, v_abono BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     bna_pagar_solicitud: BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4778,10 +4786,14 @@ BEGIN
         END IF;
         -- Cuenta de origen: el que paga (solicitado), cuenta principal
         -- Cuenta de destino: el solicitante, cuenta principal
-        SELECT num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad
-         WHERE cod_cliente = v_cod_solicitado ORDER BY num_cuenta LIMIT 1;
-        SELECT num_cuenta INTO v_cuenta_destino FROM cuentas.titularidad
-         WHERE cod_cliente = v_cod_solicitante ORDER BY num_cuenta LIMIT 1;
+        SELECT t.num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad t
+          JOIN cuentas.cuenta_ahorro c ON c.num_cuenta = t.num_cuenta
+         WHERE t.cod_cliente = v_cod_solicitado AND c.regimen = 'INDIVIDUAL'
+         ORDER BY t.num_cuenta LIMIT 1;
+        SELECT t.num_cuenta INTO v_cuenta_destino FROM cuentas.titularidad t
+          JOIN cuentas.cuenta_ahorro c ON c.num_cuenta = t.num_cuenta
+         WHERE t.cod_cliente = v_cod_solicitante AND c.regimen = 'INDIVIDUAL'
+         ORDER BY t.num_cuenta LIMIT 1;
         IF v_cuenta_origen IS NULL OR v_cuenta_destino IS NULL THEN
             CALL core.fallar('BNA-CUENTA: falta cuenta de origen o destino');
         END IF;
@@ -4800,7 +4812,7 @@ BEGIN
                                                                          'cuenta_destino', v_cuenta_destino));
             END IF;
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4818,16 +4830,16 @@ BEGIN
     DECLARE v_debito, v_abono BINARY(16);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4838,10 +4850,14 @@ BEGIN
         IF p_cod_cliente_origen = v_cod_destino THEN
             CALL core.fallar('BNA-AUTOTRANSFERENCIA');
         END IF;
-        SELECT num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad
-         WHERE cod_cliente = p_cod_cliente_origen ORDER BY num_cuenta LIMIT 1;
-        SELECT num_cuenta INTO v_cuenta_destino FROM cuentas.titularidad
-         WHERE cod_cliente = v_cod_destino ORDER BY num_cuenta LIMIT 1;
+        SELECT t.num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad t
+          JOIN cuentas.cuenta_ahorro c ON c.num_cuenta = t.num_cuenta
+         WHERE t.cod_cliente = p_cod_cliente_origen AND c.regimen = 'INDIVIDUAL'
+         ORDER BY t.num_cuenta LIMIT 1;
+        SELECT t.num_cuenta INTO v_cuenta_destino FROM cuentas.titularidad t
+          JOIN cuentas.cuenta_ahorro c ON c.num_cuenta = t.num_cuenta
+         WHERE t.cod_cliente = v_cod_destino AND c.regimen = 'INDIVIDUAL'
+         ORDER BY t.num_cuenta LIMIT 1;
         IF v_cuenta_origen IS NULL OR v_cuenta_destino IS NULL THEN
             CALL core.fallar('BNA-CUENTA: falta cuenta de origen o destino');
         END IF;
@@ -4857,7 +4873,7 @@ BEGIN
                                                                          'cod_destino', v_cod_destino, 'monto', p_monto));
             END IF;
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4869,16 +4885,16 @@ BEGIN
     DECLARE v_propia BOOLEAN DEFAULT FALSE;
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4887,7 +4903,7 @@ BEGIN
         ON DUPLICATE KEY UPDATE tipo = p_tipo, activo = p_activo;
         CALL core.registrar_evento('BILLETERA', 'operador_servicio', p_id_operador, 'REGISTRAR_OPERADOR', p_actor,
                                    NULL, JSON_OBJECT('tipo', p_tipo, 'activo', p_activo));
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4906,16 +4922,16 @@ BEGIN
     DECLARE v_tipo_operador VARCHAR(20);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4927,8 +4943,10 @@ BEGIN
         IF p_monto NOT IN (5, 10, 20, 30, 50) THEN
             CALL core.fallar('BNA-MONTO-NO-PERMITIDO');
         END IF;
-        SELECT num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad
-         WHERE cod_cliente = p_cod_cliente ORDER BY num_cuenta LIMIT 1;
+        SELECT t.num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad t
+          JOIN cuentas.cuenta_ahorro c ON c.num_cuenta = t.num_cuenta
+         WHERE t.cod_cliente = p_cod_cliente AND c.regimen = 'INDIVIDUAL'
+         ORDER BY t.num_cuenta LIMIT 1;
         IF v_cuenta_origen IS NULL THEN
             CALL core.fallar('BNA-CUENTA: el cliente no tiene cuenta');
         END IF;
@@ -4950,7 +4968,7 @@ BEGIN
                                            p_correlation_id, JSON_OBJECT('operador', p_operador, 'celular', p_celular, 'monto', p_monto));
             END IF;
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
@@ -4969,16 +4987,16 @@ BEGIN
     DECLARE v_tipo_operador VARCHAR(20);
     BEGIN
         DECLARE CONTINUE HANDLER FOR 1305 SET v_propia = TRUE;
-        SAVEPOINT bna_op;
-        RELEASE SAVEPOINT bna_op;
+        SAVEPOINT bna_billetera_pagar_qr;
+        RELEASE SAVEPOINT bna_billetera_pagar_qr;
     END;
-    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_op; END IF;
+    IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT bna_billetera_pagar_qr; END IF;
     BEGIN
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
         BEGIN
             BEGIN
                 DECLARE CONTINUE HANDLER FOR 1305 BEGIN END;
-                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_op; END IF;
+                IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT bna_billetera_pagar_qr; END IF;
             END;
             RESIGNAL;
         END;
@@ -4986,8 +5004,10 @@ BEGIN
         IF v_tipo_operador IS NULL OR v_tipo_operador <> 'SERVICIO' THEN
             CALL core.fallar('BNA-OPERADOR-NO-EXISTE');
         END IF;
-        SELECT num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad
-         WHERE cod_cliente = p_cod_cliente ORDER BY num_cuenta LIMIT 1;
+        SELECT t.num_cuenta INTO v_cuenta_origen FROM cuentas.titularidad t
+          JOIN cuentas.cuenta_ahorro c ON c.num_cuenta = t.num_cuenta
+         WHERE t.cod_cliente = p_cod_cliente AND c.regimen = 'INDIVIDUAL'
+         ORDER BY t.num_cuenta LIMIT 1;
         IF v_cuenta_origen IS NULL THEN
             CALL core.fallar('BNA-CUENTA: el cliente no tiene cuenta');
         END IF;
@@ -5009,7 +5029,7 @@ BEGIN
                                                                          'periodo', p_periodo, 'monto', p_monto));
             END IF;
         END IF;
-        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_op; END IF;
+        IF v_propia THEN COMMIT; ELSE RELEASE SAVEPOINT bna_billetera_pagar_qr; END IF;
     END;
 END //
 
