@@ -337,7 +337,8 @@ X205	bna_admin_user	Un usuario SERVICIO sin módulo se rechaza aun con privilegi
 X206	bna_admin_user	Una persona con módulo se rechaza aun con privilegios	pasa
 X207	bna_admin_user	bna_admin ejecuta los procedimientos de clientes por su privilegio sobre la base	pasa
 X342	bna_admin_user	bna_admin ejecuta los procedimientos de créditos	pasa
-X508	bna_app_user	Dos confirmaciones simultáneas debitan una sola vez (idempotente)	pasa
+X508	bna_app_user	Dos confirmaciones simultáneas con llaves distintas: la segunda falla con BNA-CONFIRMACION	pasa
+X509	bna_app_user	Dos confirmaciones simultáneas con la misma llave: la segunda es idempotente	pasa
 X234	bna_app_user	Dos registros simultáneos con el mismo correo dejan un solo cliente	pasa
 X70	bna_api_user	Una transferencia a una cuenta bloqueada no deja nada (C1)	pasa
 X71	bna_api_user	Repetir la llave tras un fallo no informa éxito (C1)	pasa
