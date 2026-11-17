@@ -172,6 +172,22 @@ concurrente C03 'RN-TOP-001 (bug 5)' 'Dos autorizaciones simultáneas sin movimi
   'autorizadas 1; segunda operación: ERR-TAR-007' \
   "SELECT CONCAT('autorizadas ', count(*)) FROM tarjetas.autorizacion WHERE num_cuenta = 'CTA-USD-1' AND estado_autorizacion = 'AUTORIZADA'"
 
+# X508 (v1.8): dos confirmaciones simultáneas de la misma autorización; la segunda
+# espera en el bloqueo de fila y recibe el resultado de la primera como repetido (idempotente).
+# Usamos un test personalizado porque la segunda operación tiene éxito (no error).
+printf 'START TRANSACTION;\n%s;\nDO SLEEP(2);\nCOMMIT;\n' \
+  "CALL tarjetas.autorizar_operacion(UUID_TO_BIN('a3000000-0000-4000-8000-000000000009'), UUID_TO_BIN('a0000000-0000-4000-8000-000000000001'), 'CTA-PEN-1', NULL, 'ATM-AQP-001', 'RETIRO', 60, NULL, 'pruebas', @e, @c)" | app_ > "$OUT/X508-a.log" 2>&1 &
+a=$!
+sleep 1
+b="$(printf 'START TRANSACTION;\n%s;\nCOMMIT;\n' \
+  "CALL tarjetas.confirmar_autorizacion(UUID_TO_BIN('a3000000-0000-4000-8000-000000000009'), 'llave-confirmar-009', REPEAT('x', 64), 'pruebas', 'ATM', NULL, @trx, @estado)" | app_ 2>&1 || true)"
+wait "$a" || true
+echo "$b" > "$OUT/X508-b.log"
+ok=0
+if [ "$(root_ -N -e "SELECT count(*) = 1 FROM cuentas.movimiento WHERE uuid_transaccion = UUID_TO_BIN('a3000000-0000-4000-8000-000000000009')")" = 1 ] && ! grep -q ERROR "$OUT/X508-b.log"; then ok=1; fi
+registrar X508 bna_app_user Concurrencia 'Extensión v1.8' 'Dos confirmaciones simultáneas debitan una sola vez (idempotente)' procedimiento \
+  'un solo débito; segunda operación: repetida' "$(root_ -N -e "SELECT CONCAT('débitos: ', count(*)) FROM cuentas.movimiento WHERE uuid_transaccion = UUID_TO_BIN('a3000000-0000-4000-8000-000000000009')"); segunda: $(echo "$b" | tail -1 | cut -c1-80 | tr -d "'")" "$ok"
+
 # X234 (v1.1): dos registros simultáneos con el mismo correo; el segundo espera en el
 # índice único y se rechaza cuando el primero confirma.
 CLIENTE=api_ concurrente X234 'Extensión v1.1' 'Dos registros simultáneos con el mismo correo dejan un solo cliente' \
