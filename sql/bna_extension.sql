@@ -970,9 +970,11 @@ BEGIN
         SET v_glosa = CONCAT('Confirmación ', BIN_TO_UUID(p_uuid_autorizacion));
         -- Registra el movimiento con el MISMO uuid que la autorización (RN-BUS-002).
         -- Usamos cuentas.aplicar_movimiento (interno) para poder fijar el uuid.
+        -- La fecha contable usa la fecha de negocio ACTUAL (como cuentas.aplicar_movimiento),
+        -- no la de la autorización.
         SELECT naturaleza INTO v_nat FROM cuentas.tipo_operacion WHERE tipo_operacion = v_tipo_operacion;
         SELECT moneda INTO v_moneda FROM cuentas.cuenta_ahorro WHERE num_cuenta = v_num_cuenta;
-        CALL core.registrar_asiento(NULL, CONCAT('A-', HEX(RANDOM_BYTES(8))), core.fn_fecha_negocio(v_fecha_hora), core.fn_fecha_negocio(v_fecha_hora),
+        CALL core.registrar_asiento(NULL, CONCAT('A-', HEX(RANDOM_BYTES(8))), core.fn_fecha_negocio(UTC_TIMESTAMP(6)), core.fn_fecha_negocio(UTC_TIMESTAMP(6)),
                                     v_glosa, v_moneda, v_correlation_id, NULL,
                                     JSON_ARRAY(JSON_OBJECT('partida', IF(v_nat = 'C', 'DEBE', 'HABER'), 'importe', v_monto, 'cuenta', '1101'),
                                                JSON_OBJECT('partida', IF(v_nat = 'C', 'HABER', 'DEBE'), 'importe', v_monto, 'cuenta', '2101')),
