@@ -1,5 +1,5 @@
-fecha: 2026-11-13T23:03:19Z
-commit: 7e30aab29457 (limpio)
+fecha: 2026-11-18T01:51:48Z
+commit: 2d0ab5f1868a (limpio)
 docker: 29.9.3
 ddl: sql/bna_core.sql en 8aec4445c150 (sin triggers)
 postgresql16: 16.15
