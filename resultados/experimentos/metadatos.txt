@@ -1,5 +1,5 @@
-fecha: 2026-11-18T11:30:55Z
-commit: 83e18563975c (limpio)
+fecha: 2026-11-18T21:20:48Z
+commit: a39c3fc03f67 (limpio)
 docker: 29.9.3
 mysql: 8.4.11
 imagen_mysql: mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70

@@ -1,7 +1,7 @@
-fecha: 2026-11-18T11:31:26Z
-commit: 83e18563975c (limpio)
+fecha: 2026-11-18T21:21:19Z
+commit: a39c3fc03f67 (limpio)
 docker: 29.9.3
-ddl: sql/bna_core.sql en 83e18563975c (limpio)
+ddl: sql/bna_core.sql en a39c3fc03f67 (limpio)
 postgresql16: 16.15
 imagen16: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
 postgresql17: 17.11
